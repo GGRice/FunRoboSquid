@@ -1,6 +1,5 @@
 /**
  * Sprint 2 Code Outline
- * Think/Act
  * SquidBot
  * Outline of code for sprint 2
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
@@ -34,10 +33,10 @@ Adafruit_MotorShield AFMS = Adafruit_MotorShield(); //creates motor shield
 boolean eStop, flood, temp = False;
 
 //pins
-const int FIN1 = 3; //right fin
-const int FIN2 = 9; //left fin
-const int VALVE1 = 10; //right valve
-const int VALVE2 = 11; //left valve
+const int FIN1 = 0; //right fin
+const int FIN2 = 1; //left fin
+const int VALVE1 = 2; //right valve
+const int VALVE2 = 3; //left valve
 const int STOP = 4; //pin to determine estop for interrupt
 
 //DC motor
@@ -78,11 +77,18 @@ void loop() {
   //downloadMission
   //readSenseArduino
 
+  //SENSE
   //THINK
   //ACT
 }
 
-//CONTROL FUNCTIONS CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+//CONTROL FUNCTION CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+//SENSE
+//huntForColour
+//floodCheck
+//tempCheck
+//printLCDScreen
 
 //THINK
 //determinePos

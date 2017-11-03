@@ -1,9 +1,9 @@
 // CONSTANTS
 enum {RIGHT=-1, NONE=0, LEFT=1, STRAIGHT=2}; // Directions
 enum {RED=3, YELLOW=4, WHITE=5, HOME=6}; // Targets
-int MIN_DIST = 10; // Distance from target to start turning, in inches
-float K_P = 1.0; // Proportional constant for feedback control
-int VELOCITY = 100; // Pump output when moving
+const int MIN_DIST = 10; // Distance from target to start turning, in inches
+const float K_P = 1.0; // Proportional constant for feedback control
+const int VELOCITY = 100; // Pump output when moving
 
 // STATE VARIABLES
 int direction = 0; // Computed direction to travel
@@ -18,7 +18,7 @@ void setup() {
 
 void loop() {
   parseCommandData();
-  parseSenseData();
+  sense();
   think();
   act();
 }
@@ -41,7 +41,7 @@ void sense() {
 // Compute the current robot state
 void think() {
   if (targets[target]<=2) { // manual override
-    direction = targets[0];
+    direction = targets[target];
   } else if (distance<0) { // target not visible
     direction = LEFT;
   } else if (distance<MIN_DIST) { // reached target
