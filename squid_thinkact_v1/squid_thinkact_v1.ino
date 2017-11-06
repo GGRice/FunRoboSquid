@@ -32,6 +32,7 @@ const int MIN_DIST = 10; // Distance from target to start turning, in inches
 const float K_P = 1.0; // Proportional constant for feedback control
 const int VELOCITY = 100; // Pump output for normal swimming
 const int MAX_MISSION_LENGTH = 10; // Maximum number of targets in a mission
+const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy
 
 // Pins
 const int FIN1 = 3; //right fin
@@ -48,7 +49,7 @@ Servo rightFin, leftFin;
 
 // State variables
 int direction = 0; // Computed direction to travel
-int *targets[MAX_MISSION_LENGTH]; // Ordered array of targets, e.g. {RED, YELLOW, WHITE, HOME, NONE}
+int *mission[MAX_MISSION_LENGTH]; // Ordered array of targets, e.g. {RED, YELLOW, WHITE, HOME, NONE}
 int target = 0; // Current target index
 int distance = 0; // Distance from target in inches
 int angle = 0; // Angle towards target in degrees CCW
@@ -100,12 +101,15 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-  // TODO
-  // The current target is mission[target]
-  // Set distance and angle based on that target
-  // If target isn't visible, distance=-1
+  // TODO: get an array called "blocks" over Serial, with length "n"
   distance = -1;
   angle = 0;
+  for (int i=0; i<n; i++) {
+    if (blocks[i].signature==mission[target]-2) { // 1, 2, or 3
+      distance = CAMERA_RATIO*blocks[i].width;
+      angle = blocks[i].x-159; // 159 = center of screen
+    }
+  }
 }
 
 
