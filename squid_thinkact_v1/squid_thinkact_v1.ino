@@ -2,7 +2,6 @@
  * Sprint 2 Code Outline
  * Think/Act
  * SquidBot
- * Outline of code for sprint 2
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
@@ -35,46 +34,51 @@ const int MIN_DIST = 10; // Distance from target to start turning, in inches
 const float K_P = 1.0; // Proportional constant for feedback control
 const int VELOCITY = 100; // Pump output for normal swimming
 const int MAX_MISSION_LENGTH = 10; // Maximum number of targets in a mission
+const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy
 
 // Pins
 const int FIN1 = 3; //right fin
 const int FIN2 = 9; //left fin
-const int VALVE1 = 10; //right valve
-const int VALVE2 = 11; //left valve
-const int STOP = 4; //pin to determine estop for interrupt
+const int TUBE1 = 10; //right tube pull
+const int TUBE2 = 11 //left tube pull
+const int VALVE2 = 12; //left valve through relay
+const int STOP = 4; //magnetic sensor pin to determin eStop
 
 // Objects
 Pixy pixy; //creates PixyCam object to use
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); //creates motor shield
 Adafruit_DCMotor *pump = AFMS.getMotor(1); //create bilge pump DC motor plugged into motor shield
+Adafruit_DCMotor *valve1 = AFMS.getMotor(2); //right valve
 Servo rightFin, leftFin;
 EasyTransfer ETin, ETout; 
+SoftwareSerial XBee(2, 3); // RX, TX
 
 // State variables
 int direction = 0; // Computed direction to travel
-int *targets[MAX_MISSION_LENGTH]; // Ordered array of targets, e.g. {RED, YELLOW, WHITE, HOME, NONE}
+int *mission[MAX_MISSION_LENGTH]; // Ordered array of targets, e.g. {RED, YELLOW, WHITE, HOME, NONE}
 int target = 0; // Current target index
 int distance = 0; // Distance from target in inches
 int angle = 0; // Angle towards target in degrees CCW
+long previousMillis = 0;
 //eStop true if eStop activated
 //flood true if hull flooding
 //temp true if electronics overheating
 boolean eStop, flood, temp = false;
 
 
-//Serial sned/recieve structures
+//Serial send/recieve structures
 struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
 
-  //Where we will put the array
+  array blocks;
 };
 
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
 
-  //The array?
+  array blocks;
 };
 
 //give a name to the group of data
@@ -84,28 +88,55 @@ SEND_DATA_STRUCTURE txdata;
 // SETUP ROBOT CODE (RUN ONCE) SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
   Serial.begin(9600);
-  pixy.init();
-  
-  rightFin.attach(FIN1);
-  leftFin.attach(FIN2);
-  rightValve.attach(VALVE1);
-  leftValve.attach(VALVE2);
-
+  XBee.begin(9600);
   //Serial transfer stuff
   ETin.begin(details(rxdata), &Serial);
   ETout.begin(details(txdata), &Serial);
 
-  attachInterrupt(digitalPinToInterrupt(STOP), eStop, CHANGE);
+  AFMS. begin();
+  
+  pixy.init();
+  
+  rightFin.attach(FIN1);
+  leftFin.attach(FIN2);
+  rightTube.attach(TUBE1);
+  leftTube.attach(TUBE2);
 
-  //systemCheck
-  //waitForLaunch
+  pump -> setSpeed(150);
+  valve1 -> setSpeed(150);
+
+  pinMode(VALVE2, OUTPUT);
+  pinMode(STOP, INPUT);
+  
+  digitalWrite(STOP, HIGH);
+  
+
+  attachInterrupt(digitalPinToInterrupt(STOP), eStop, LOW);
+
+  systemCheck();
+
+  //delay before starting code
+  previousMillis = millis();
+  unsigned long currentMillis = millis();
+ 
+  if(currentMillis - previousMillis > 5000) {
+    // save the last time you blinked the LED 
+    previousMillis = currentMillis;
+  }
 
 }
 
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  //eStop
+  if (Serial.available())
+  { // If data comes in from serial monitor, send it out to XBee
+    XBee.write(Serial.read());
+  }
+  if (XBee.available())
+  { // If data comes in from XBee, send it out to serial monitor
+    Serial.write(XBee.read());
+  }
   downloadMission();
   readSenseArduino();
   think();
@@ -127,17 +158,66 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-  // TODO
-  // The current target is mission[target]
-  // Set distance and angle based on that target
-  // If target isn't visible, distance=-1
+  // TODO: get an array called "blocks" over Serial, with length "n"
   distance = -1;
   angle = 0;
 
   //Not sending any data to other arduino, just recieving, right?
-  ETin.receiveData();
+  //If sending as well, needs to edit this
+  ETin.receiveData(); //recieves data: blocks
 
-  delay(10);
+  previousMillis = millis();
+  unsigned long currentMillis = millis();
+ 
+  if(currentMillis - previousMillis > 10) {
+    // save the last time you blinked the LED 
+    previousMillis = currentMillis;
+  }
+
+  for (int i=0; i<n; i++) {
+    if (blocks[i].signature==mission[target]-2) { // 1, 2, or 3
+      distance = CAMERA_RATIO*blocks[i].width;
+      angle = blocks[i].x-159; // 159 = center of screen
+    }
+  }
+}
+
+//Check all systems
+void systemCheck(){
+  rightFin.write(90);
+  leftFin.write(90);
+  leftTube.write(90);
+  rightTube.write(90);
+  pump -> run(FORWARD);
+  valve1 -> run(FORWARD);
+  digital.write(VALVE2, HIGH);
+
+  previousMillis = millis();
+  unsigned long currentMillis = millis();
+ 
+  if(currentMillis - previousMillis > 100) {
+    // save the last time you blinked the LED 
+    previousMillis = currentMillis;
+  }
+
+  rightFin.write(0);
+  leftFin.write(0);
+  leftTube.write(0);
+  rightTube.write(0);
+  pump -> run(RELEASE);
+  valve1 -> run(RELEASE);
+  digital.write(VALVE2, LOW); 
+}
+
+//eStop function to shut off all motors
+void eStop(){
+  rightFin.write(0);
+  leftFin.write(0);
+  leftTube.write(0);
+  rightTube.write(0);
+  pump -> run(RELEASE);
+  valve1 -> run(RELEASE);
+  digital.write(VALVE2, LOW);
 }
 
 
@@ -179,3 +259,5 @@ void act() {
       break;
   }
 }
+
+

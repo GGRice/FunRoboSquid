@@ -52,13 +52,4 @@ void think() {
   }
 }
 
-// Output motor values
-void act() {
-  // TODO
-  if (direction == STRAIGHT) {
-    int angleOut = int(K_P*angle);
-    int distOut = VELOCITY;
-    // output(angleOut, distOut);
-  }
-}
 
