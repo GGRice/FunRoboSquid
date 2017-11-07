@@ -103,9 +103,9 @@ void setup() {
   leftTube.attach(TUBE2);
 
   pump -> setSpeed(150);
-  valve1 -> setSpeed(150);
+  valve1 -> setSpeed(150); //right
 
-  pinMode(VALVE2, OUTPUT);
+  pinMode(VALVE2, OUTPUT); //left
   pinMode(STOP, INPUT);
   
   digitalWrite(STOP, HIGH);
@@ -115,28 +115,26 @@ void setup() {
 
   systemCheck();
 
-  //delay before starting code
-  previousMillis = millis();
-  unsigned long currentMillis = millis();
- 
-  if(currentMillis - previousMillis > 5000) {
-    // save the last time you blinked the LED 
-    previousMillis = currentMillis;
-  }
+  //delay before start code
+  wait(5000);
 
 }
 
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
+  pump -> run(FORWARD);
+  
   if (Serial.available())
   { // If data comes in from serial monitor, send it out to XBee
     XBee.write(Serial.read());
+    mission = XBee.read(); //Probably not right!
   }
   if (XBee.available())
   { // If data comes in from XBee, send it out to serial monitor
     Serial.write(XBee.read());
   }
+  
   downloadMission();
   readSenseArduino();
   think();
@@ -145,6 +143,18 @@ void loop() {
 
 
 // CONTROL FUNCTIONS CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+
+//delay loop
+void wait(int t){
+  previousMillis = millis();
+  unsigned long currentMillis = millis();
+ 
+  if(currentMillis - previousMillis > t) {
+    // save the last time you blinked the LED 
+    previousMillis = currentMillis;
+  }
+}
 
 // Check for new mission over Serial
 void downloadMission() {
@@ -211,6 +221,7 @@ void systemCheck(){
 
 //eStop function to shut off all motors
 void eStop(){
+  eStop = true;
   rightFin.write(0);
   leftFin.write(0);
   leftTube.write(0);
@@ -248,16 +259,40 @@ void act() {
     case STRAIGHT: // Swim straight using proportional feedback control
       int angleOut = int(K_P*angle);
       int distOut = VELOCITY;
+      valve1 -> run(FORWARD);
+      digital.write(VALVE2, HIGH);
+      move(angleOut, distOut);
       break;
     case LEFT: // Turn left
+      int angleOut = int(K_P*angle);
+      int distOut = VELOCITY;
+      valve1 -> run(FORWARD);
+      digital.write(VALVE2, LOW);
+      move(angleOut, distOut);
+      leftFin.write(-90);
       break;
     case RIGHT: // Turn right
+      int angleOut = int(K_P*angle);
+      int distOut = VELOCITY;
+      valve1 -> run(RELEASE);
+      digital.write(VALVE2, HIGH);
+      move(angleOut, distOut);
+      rightFin.write(90);
       break;
     case DANCE: // Show off your moves
       break;
     default: // Stop
+      rightFin.write(0);
+      leftFin.write(0);
+      leftTube.write(0);
+      rightTube.write(0);
       break;
   }
+}
+  
+void move(ang){
+  leftTube.write(ang);
+  rightTube.write(ang);
 }
 
 
