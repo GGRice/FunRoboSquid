@@ -10,6 +10,9 @@
  * Version 1
  */
 
+//library for Serial Transfer
+#include <EasyTransfer.h>
+
 //libraries included to use PixyCam
 #include <SPI.h>  
 #include <Pixy.h>
@@ -45,6 +48,7 @@ Pixy pixy; //creates PixyCam object to use
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); //creates motor shield
 Adafruit_DCMotor *pump = AFMS.getMotor(1); //create bilge pump DC motor plugged into motor shield
 Servo rightFin, leftFin;
+EasyTransfer ETin, ETout; 
 
 // State variables
 int direction = 0; // Computed direction to travel
@@ -58,6 +62,25 @@ int angle = 0; // Angle towards target in degrees CCW
 boolean eStop, flood, temp = false;
 
 
+//Serial sned/recieve structures
+struct RECEIVE_DATA_STRUCTURE{
+  //put your variable definitions here for the data you want to receive
+  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
+
+  //Where we will put the array
+};
+
+struct SEND_DATA_STRUCTURE{
+  //put your variable definitions here for the data you want to receive
+  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
+
+  //The array?
+};
+
+//give a name to the group of data
+RECEIVE_DATA_STRUCTURE rxdata;
+SEND_DATA_STRUCTURE txdata;
+
 // SETUP ROBOT CODE (RUN ONCE) SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
   Serial.begin(9600);
@@ -67,6 +90,10 @@ void setup() {
   leftFin.attach(FIN2);
   rightValve.attach(VALVE1);
   leftValve.attach(VALVE2);
+
+  //Serial transfer stuff
+  ETin.begin(details(rxdata), &Serial);
+  ETout.begin(details(txdata), &Serial);
 
   attachInterrupt(digitalPinToInterrupt(STOP), eStop, CHANGE);
 
@@ -106,6 +133,11 @@ void readSenseArduino() {
   // If target isn't visible, distance=-1
   distance = -1;
   angle = 0;
+
+  //Not sending any data to other arduino, just recieving, right?
+  ETin.receiveData();
+
+  delay(10);
 }
 
 

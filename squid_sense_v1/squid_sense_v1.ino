@@ -9,6 +9,8 @@
  * 10/25/2017
  * Version 1
  */
+//library for serial communication
+#include <EasyTransfer.h>
 
 //libraries included to use PixyCam
 #include <SPI.h>  
@@ -26,6 +28,7 @@
 
 //Constants and Global Variables VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 Pixy pixy; //creates PixyCam object to use
+EasyTransfer ETin, ETout; //creates serial structures to transfer data
 
 //flood True if hull flooding
 //temp true if electronics overheating
@@ -41,15 +44,41 @@ array = [(int c1=0, int x1=0, int y1=0, int s1=0),
           (int c4=0, int x4=0, int y4=0, int s4=0)];
 
 
+//Serial structures 
+struct RECEIVE_DATA_STRUCTURE{
+  //put your variable definitions here for the data you want to receive
+  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
+
+  //Where we will put the array
+};
+
+struct SEND_DATA_STRUCTURE{
+  //put your variable definitions here for the data you want to receive
+  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
+
+  //The array?
+};
+
+//give a name to the group of data
+RECEIVE_DATA_STRUCTURE rxdata;
+SEND_DATA_STRUCTURE txdata;
+
+
 //SETUP ROBOT CODE (RUN ONCE)SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
   Serial.begin(9600);
   pixy.init();
 
+  ETin.begin(details(rxdata), &Serial);
+  ETout.begin(details(txdata), &Serial);
 }
 
 //ROBOT CONTROL LOOP (RUNS UNTIL STOP)LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
+  //just sending, not recieving?
+  txdata.ARRAY = ARRAY;
+  delay(10);
+  
   //SENSE
 }
 
@@ -57,6 +86,18 @@ void loop() {
 
 //SENSE
 //huntForColour
-//floodCheck
-//tempCheck
+
+boolean flood(){
+  liquidLevel = digitalRead(FLOODPIN);
+  if(liquidLevel == HIGH)
+    flood = true;
+}
+
+boolean tmep(){//temp 150F
+  val=analogRead(A0);//Connect LM35 on Analog 0
+  dat = (double) val * (5/10.24); 
+
+  if(dat >= 65.5)
+    temp = true;
+}
 //printLCDScreen
