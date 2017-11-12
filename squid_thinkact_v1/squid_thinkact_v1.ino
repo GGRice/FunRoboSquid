@@ -11,6 +11,7 @@
 
 //library for Serial Transfer
 #include <EasyTransfer.h>
+#include <SoftwareSerial.h>
 
 //libraries included to use PixyCam
 #include <SPI.h>  
@@ -23,7 +24,7 @@
 #include <Wire.h>
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_MS_PWMServoDriver.h"
-#include "NineAxesMotion.h" 
+//#include "NineAxesMotion.h"
 
 
 // CONSTANTS AND GLOBAL VARIABLES VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
@@ -63,13 +64,13 @@ EasyTransfer ETin, ETout;
 SoftwareSerial XBee(2, 3); // RX, TX
 
 // State variables
-int direction = 0; // Computed direction to travel
-int *mission[MAX_MISSION_LENGTH]; // Ordered array of targets, e.g. {RED, YELLOW, WHITE, HOME, NONE}
+int direction = NONE; // Computed direction to travel
+int mission[MAX_MISSION_LENGTH]; // Ordered array of targets, e.g. {RED, YELLOW, WHITE, HOME, NONE}
 int target = 0; // Current target index
 int distance = 0; // Distance from target in inches
 int angle = 0; // Angle towards target in degrees CCW
 long previousMillis = 0; // Previous loop time in milliseconds
-boolean eStop, flood, temp = false; // eStop activated, hull flooding, electronics overheating
+boolean estop, flood, temp = false; // eStop activated, hull flooding, electronics overheating
 
 // Serial send/recieve structures
 struct RECEIVE_DATA_STRUCTURE{
@@ -125,23 +126,12 @@ void setup() {
 
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
-void loop() {
-  pump -> run(FORWARD);
-  
-  if (Serial.available())
-  { // If data comes in from serial monitor, send it out to XBee
-    XBee.write(Serial.read());
-    mission = XBee.read(); //Probably not right!
-  }
-  if (XBee.available())
-  { // If data comes in from XBee, send it out to serial monitor
-    Serial.write(XBee.read());
-  }
-  
+void loop() {  
   downloadMission();
   readSenseArduino();
   think();
   act();
+  debug();
 }
 
 
@@ -161,10 +151,29 @@ void wait(int t){
 
 // Check for new mission over Serial
 void downloadMission() {
-  // TODO
-  // Overwrite the targets array and set target=0 if a new mission exists
-  for (int i=0;i<MAX_MISSION_LENGTH;i++){
-    targets[i] = NONE;
+  int n = XBee.available();
+  if(n<1) {
+    return;
+  }
+  if(n>1 && XBee.read()!='m') {
+    return;
+  }
+  for (int i=0;i<min(n-1,1); i++) {
+    switch(XBee.read()) {
+      case '2': mission[i] = STRAIGHT; break;
+      case '1': mission[i] = LEFT; break;
+      case '3': mission[i] = RIGHT; break;
+      case 'r': mission[i] = RED; break;
+      case 'y': mission[i] = YELLOW; break;
+      case 'w': mission[i] = WHITE; break;
+      case 'h': mission[i] = HOME; break;
+      case 'd': mission[i] = DANCE; break;
+      case 'l': mission[i] = LOOP; break;
+      default: mission[i] = NONE;
+    }
+  }
+  for (int i=n;i<MAX_MISSION_LENGTH;i++){
+    mission[i] = NONE;
   }
   target = 0;
 }
@@ -172,6 +181,8 @@ void downloadMission() {
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
   // TODO: get an array called "blocks" over Serial, with length "n"
+  int n = blocks.length;
+  
   distance = -1;
   angle = 0;
 
@@ -203,7 +214,7 @@ void systemCheck(){
   rightTube.write(90);
   pump -> run(FORWARD);
   valve1 -> run(FORWARD);
-  digital.write(VALVE2, HIGH);
+  digitalWrite(VALVE2, HIGH);
 
   previousMillis = millis();
   unsigned long currentMillis = millis();
@@ -219,27 +230,50 @@ void systemCheck(){
   rightTube.write(0);
   pump -> run(RELEASE);
   valve1 -> run(RELEASE);
-  digital.write(VALVE2, LOW); 
+  digitalWrite(VALVE2, LOW); 
 }
 
 //eStop function to shut off all motors
 void eStop(){
-  eStop = true;
+  estop = true;
   rightFin.write(0);
   leftFin.write(0);
   leftTube.write(0);
   rightTube.write(0);
   pump -> run(RELEASE);
   valve1 -> run(RELEASE);
-  digital.write(VALVE2, LOW);
+  digitalWrite(VALVE2, LOW);
 }
 
+// Output current state over XBee
+void debug() {
+  XBee.print("Mission: ");
+  for (int i=0; i<MAX_MISSION_LENGTH; i++) {
+    XBee.print(mission[i]);
+  }
+  XBee.print(", Target: ");
+  XBee.print(target);
+  XBee.print(", Direction: ");
+  XBee.print(direction);
+  XBee.print(", Distance: ");
+  XBee.print(distance);
+  XBee.print(", Angle: ");
+  XBee.print(angle);
+  XBee.print(", Flood: ");
+  XBee.print(flood);
+  XBee.print(", Temp: ");
+  XBee.print(temp);
+  XBee.print(", E-Stop: ");
+  XBee.println(estop);
+
+
+}
 
 // THINK TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 void think() {
   if (mission[target]<=2) { // Manual override
     direction = mission[target];
-  } else if mission[target]==DANCE) { // Dance code
+  } else if (mission[target]==DANCE) { // Dance code
     direction = DANCE;
   } else if (distance<0) { // Target not visible
     direction = LEFT;
@@ -257,9 +291,12 @@ void think() {
 
 // ACT AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 void act() {
+  if(estop) {
+    move(0,0);
+    return;
+  }
   switch (direction) {
     case STRAIGHT: // Swim straight using proportional feedback control
-      int angleOut = int(K_P*angle);
       move(FORWARD_VELOCITY, int(K_P*angle));
       break;
     case LEFT: // Turn left
@@ -309,12 +346,12 @@ void move(int vel, int ang){
   // Set valve states
   if(TURN_VALVES && ang>=TURNING_ANGLE) { // left
     valve1 -> run(RELEASE);
-    digital.write(VALVE2, HIGH);
+    digitalWrite(VALVE2, HIGH);
   } else if(TURN_VALVES && ang<=-TURNING_ANGLE) { // right
     valve1 -> run(FORWARD);
-    digital.write(VALVE2, LOW);
+    digitalWrite(VALVE2, LOW);
   } else { // straight
     valve1 -> run(FORWARD);
-    digital.write(VALVE2, HIGH);
+    digitalWrite(VALVE2, HIGH);
   }
 }
