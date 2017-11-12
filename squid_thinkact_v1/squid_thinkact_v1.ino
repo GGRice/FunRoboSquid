@@ -5,27 +5,23 @@
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
- * 11/7/2017
+ * 11/12/2017
  * Version 1
  */
 
-//library for Serial Transfer
+// Library for Serial Transfer
 #include <EasyTransfer.h>
 #include <SoftwareSerial.h>
 
-//libraries included to use PixyCam
-#include <SPI.h>  
+// Libraries included to use PixyCam
+#include <SPI.h>
 #include <Pixy.h>
 
-//library included to use servos
+// Library included to use servos
 #include<Servo.h>
 
-//libraries included to use motor and motion shield
+// Libraries included to use motor and motion shield
 #include <Wire.h>
-//#include <Adafruit_MotorShield.h>
-//#include "utility/Adafruit_MS_PWMServoDriver.h"
-//#include "NineAxesMotion.h"
-
 
 // CONSTANTS AND GLOBAL VARIABLES VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 // Constants
@@ -47,17 +43,17 @@ const bool TURN_VALVES = true; // Whether to use valves for steering
 const bool TURN_FINS = true; // Whether to use fins for steering
 
 // Pins
-const int FIN1 = 3; //right fin
-const int FIN2 = 9; //left fin
-const int TUBE1 = 10; //right tube pull
-const int TUBE2 = 11; //left tube pull
-const int VALVE2 = 12; //left valve through relay
-const int STOP = 4; //magnetic sensor pin to determin eStop
-const int PUMPE = 4; //pump PLL speed control pin
-const int PUMPM = 5; //pump motor plug
-const int VALVE1E = 7; //valve PLL speed control pin
-const int VALVE1M = 6; //valve motor plug
-
+const int FIN1 = 3; // Right fin
+const int FIN2 = 9; // Left fin
+const int TUBE1 = 10; // Right tube pull
+const int TUBE2 = 11; // Left tube pull
+const int VALVE2 = 12; // Left valve through relay
+const int STOP = 4; // Magnetic sensor pin to determin eStop
+const int PUMPE = 4; // Pump PLL speed control pin
+const int PUMPM = 5; // Pump motor plug
+const int VALVE1E = 7; // Valve PLL speed control pin
+const int VALVE1M = 6; // Valve motor plug
+const int MAX_BLOCKS = 6; // Maximum number of blocks sent from pixycam
 
 // Objects
 Pixy pixy; //creates PixyCam object to use
@@ -78,15 +74,13 @@ boolean estop, flood, temp = false; // eStop activated, hull flooding, electroni
 struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-
-  uint16_t blocks;
+  Block blocks[MAX_BLOCKS];
 };
 
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-
-  uint16_t blocks;
+  Block blocks[MAX_BLOCKS];
 };
 
 // Give a name to the group of data
@@ -95,31 +89,32 @@ SEND_DATA_STRUCTURE txdata;
 
 // SETUP ROBOT CODE (RUN ONCE) SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
+  // Serial transfer initialization
   Serial.begin(9600);
   XBee.begin(9600);
-  //Serial transfer initialization
   ETin.begin(details(rxdata), &Serial);
   ETout.begin(details(txdata), &Serial);
-  
+
+  // Camera intitialization
   pixy.init();
-  
+
+  // Pin initialization
   rightFin.attach(FIN1);
   leftFin.attach(FIN2);
   rightTube.attach(TUBE1);
   leftTube.attach(TUBE2);
-
   pinMode(PUMPM, OUTPUT);
   pinMode(VALVE1M, OUTPUT); 
   pinMode(VALVE2, OUTPUT); //left
   pinMode(STOP, INPUT);
-  
+
+  // E-Stop initialization
   digitalWrite(STOP, HIGH);
-  
   attachInterrupt(digitalPinToInterrupt(STOP), eStop, LOW);
 
   systemCheck();
 
-  //delay before start code
+  // Delay before start of code
   wait(5000);
 }
 
@@ -136,8 +131,7 @@ void loop() {
 
 // CONTROL FUNCTIONS CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
-
-//delay loop
+// Delay loop
 void wait(int t){
   previousMillis = millis();
   unsigned long currentMillis = millis();
@@ -148,7 +142,7 @@ void wait(int t){
   }
 }
 
-// Check for new mission over Serial
+// Check for new mission over Serial in the format "m----" or "-"
 void downloadMission() {
   int n = XBee.available();
   if(n<1) {
@@ -179,15 +173,9 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-  // TODO: get an array called "blocks" over Serial, with length "n"
-  int n = blocks.length;
-  
   distance = -1;
   angle = 0;
-
-  //Not sending any data to other arduino, just recieving, right?
-  //If sending as well, needs to edit this
-  ETin.receiveData(); //recieves data: blocks
+  ETin.receiveData(); //recieves data: n, blocks
 
   previousMillis = millis();
   unsigned long currentMillis = millis();
@@ -197,10 +185,10 @@ void readSenseArduino() {
     previousMillis = currentMillis;
   }
 
-  for (int i=0; i<n; i++) {
-    if (blocks[i].signature==mission[target]-2) { // 1, 2, or 3
-      distance = CAMERA_RATIO*blocks[i].width;
-      angle = blocks[i].x-159; // 159 = center of screen
+  for (int i=0; i<MAX_BLOCKS; i++) {
+    if (rxdata.blocks[i].signature==mission[target]-2) { // 1, 2, or 3
+      distance = CAMERA_RATIO*rxdata.blocks[i].width;
+      angle = rxdata.blocks[i].x-159; // 159 = center of screen
     }
   }
 }
