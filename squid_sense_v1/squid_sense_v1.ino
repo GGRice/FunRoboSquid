@@ -20,9 +20,6 @@
 #include<Servo.h>
 
 //libraries included to use motor and motion shield
-#include <Wire.h>
-#include <Adafruit_MotorShield.h>
-#include "utility/Adafruit_MS_PWMServoDriver.h"
 #include "NineAxesMotion.h" 
 
 
@@ -53,14 +50,14 @@ struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
 
-  array blocks;
+  uint16_t blocks;
 };
 
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
 
-  array blocks;
+  uint16_t blocks;
 };
 
 //give a name to the group of data

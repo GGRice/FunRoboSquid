@@ -22,8 +22,8 @@
 
 //libraries included to use motor and motion shield
 #include <Wire.h>
-#include <Adafruit_MotorShield.h>
-#include "utility/Adafruit_MS_PWMServoDriver.h"
+//#include <Adafruit_MotorShield.h>
+//#include "utility/Adafruit_MS_PWMServoDriver.h"
 //#include "NineAxesMotion.h"
 
 
@@ -33,8 +33,8 @@ enum {RIGHT=-1, NONE=0, LEFT=1, STRAIGHT=2}; // Directions
 enum {RED=3, YELLOW=4, WHITE=5, HOME=6, DANCE=7, LOOP=8}; // Targets
 const int APPROACH_DIST = 10; // Distance from target to start turning, in inches
 const float K_P = 1.0; // Proportional constant for feedback control
-const int FORWARD_VELOCITY = 150; // Pump output for normal swimming
-const int TURNING_VELOCITY = 150; // Pump output for turning
+const int FORWARD_VELOCITY = 255; // Pump output for normal swimming
+const int TURNING_VELOCITY = 255; // Pump output for turning
 const int MAX_MISSION_LENGTH = 10; // Maximum number of targets in a mission
 const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy
 const int SERVO_MAX_POSITION = 170; // Maximum angle that servos can output
@@ -53,12 +53,14 @@ const int TUBE1 = 10; //right tube pull
 const int TUBE2 = 11; //left tube pull
 const int VALVE2 = 12; //left valve through relay
 const int STOP = 4; //magnetic sensor pin to determin eStop
+const int PUMPE = 4; //pump PLL speed control pin
+const int PUMPM = 5; //pump motor plug
+const int VALVE1E = 7; //valve PLL speed control pin
+const int VALVE1M = 6; //valve motor plug
+
 
 // Objects
 Pixy pixy; //creates PixyCam object to use
-Adafruit_MotorShield AFMS = Adafruit_MotorShield(); //creates motor shield
-Adafruit_DCMotor *pump = AFMS.getMotor(1); //create bilge pump DC motor plugged into motor shield
-Adafruit_DCMotor *valve1 = AFMS.getMotor(2); //right valve
 Servo rightFin, leftFin, leftTube, rightTube;
 EasyTransfer ETin, ETout; 
 SoftwareSerial XBee(2, 3); // RX, TX
@@ -77,14 +79,14 @@ struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
 
-  array blocks;
+  uint16_t blocks;
 };
 
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
 
-  array blocks;
+  uint16_t blocks;
 };
 
 // Give a name to the group of data
@@ -98,8 +100,6 @@ void setup() {
   //Serial transfer initialization
   ETin.begin(details(rxdata), &Serial);
   ETout.begin(details(txdata), &Serial);
-
-  AFMS.begin();
   
   pixy.init();
   
@@ -108,9 +108,8 @@ void setup() {
   rightTube.attach(TUBE1);
   leftTube.attach(TUBE2);
 
-  pump -> setSpeed(150);
-  valve1 -> setSpeed(255); //right
-
+  pinMode(PUMPM, OUTPUT);
+  pinMode(VALVE1M, OUTPUT); 
   pinMode(VALVE2, OUTPUT); //left
   pinMode(STOP, INPUT);
   
@@ -126,7 +125,7 @@ void setup() {
 
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
-void loop() {  
+void loop() {
   downloadMission();
   readSenseArduino();
   think();
@@ -212,9 +211,11 @@ void systemCheck(){
   leftFin.write(90);
   leftTube.write(90);
   rightTube.write(90);
-  pump -> run(FORWARD);
-  valve1 -> run(FORWARD);
   digitalWrite(VALVE2, HIGH);
+  digitalWrite(PUMPM, HIGH);
+  analogWrite(PUMPE, 255);
+  digitalWrite(VALVE1M, HIGH);
+  analogWrite(VALVE1E, 255);
 
   previousMillis = millis();
   unsigned long currentMillis = millis();
@@ -228,9 +229,11 @@ void systemCheck(){
   leftFin.write(0);
   leftTube.write(0);
   rightTube.write(0);
-  pump -> run(RELEASE);
-  valve1 -> run(RELEASE);
-  digitalWrite(VALVE2, LOW); 
+  digitalWrite(VALVE2, LOW);
+  digitalWrite(PUMPM, LOW);
+  analogWrite(PUMPE, 0);
+  digitalWrite(VALVE1M, LOW);
+  analogWrite(VALVE1E, 0); 
 }
 
 //eStop function to shut off all motors
@@ -240,9 +243,11 @@ void eStop(){
   leftFin.write(0);
   leftTube.write(0);
   rightTube.write(0);
-  pump -> run(RELEASE);
-  valve1 -> run(RELEASE);
   digitalWrite(VALVE2, LOW);
+  digitalWrite(PUMPM, LOW);
+  analogWrite(PUMPE, 0);
+  digitalWrite(VALVE1M, LOW);
+  analogWrite(VALVE1E, 0); 
 }
 
 // Output current state over XBee
@@ -265,8 +270,6 @@ void debug() {
   XBee.print(temp);
   XBee.print(", E-Stop: ");
   XBee.println(estop);
-
-
 }
 
 // THINK TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
@@ -316,11 +319,12 @@ void act() {
 // Output motor values
 void move(int vel, int ang){
   // Set pump output
-  pump -> setSpeed(vel);
   if(vel>0) {
-    pump -> run(FORWARD);
+    digitalWrite(PUMPM, HIGH);
+    analogWrite(PUMPE, vel);
   } else {
-    pump -> run(RELEASE);
+    digitalWrite(PUMPM, LOW);
+    analogWrite(PUMPE, 0);
   }
   // Set tube angles
   if(TURN_TUBES) {
@@ -345,13 +349,16 @@ void move(int vel, int ang){
   }
   // Set valve states
   if(TURN_VALVES && ang>=TURNING_ANGLE) { // left
-    valve1 -> run(RELEASE);
+    digitalWrite(VALVE1M, LOW);
+    analogWrite(VALVE1E, 0);
     digitalWrite(VALVE2, HIGH);
   } else if(TURN_VALVES && ang<=-TURNING_ANGLE) { // right
-    valve1 -> run(FORWARD);
+    digitalWrite(VALVE1M, HIGH);
+    analogWrite(VALVE1E, 255);
     digitalWrite(VALVE2, LOW);
   } else { // straight
-    valve1 -> run(FORWARD);
+    digitalWrite(VALVE1M, HIGH);
+    analogWrite(VALVE1E, 255);
     digitalWrite(VALVE2, HIGH);
   }
 }
