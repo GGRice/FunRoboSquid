@@ -174,14 +174,6 @@ void readSenseArduino() {
   ETin.receiveData(); //recieves data: n, blocks
   wait(10);
 
-  previousMillis = millis();
-  unsigned long currentMillis = millis();
- 
-  if(currentMillis - previousMillis > 10) {
-    // save the last time you blinked the LED 
-    previousMillis = currentMillis;
-  }
-
   for (int i=0; i<MAX_BLOCKS; i++) {
     if (rxdata.blocks[i].signature==mission[target]-2) { // 1, 2, or 3
       distance = CAMERA_RATIO*rxdata.blocks[i].width;
@@ -202,13 +194,7 @@ void systemCheck(){
   digitalWrite(VALVE1M, HIGH);
   analogWrite(VALVE1E, 255);
 
-  previousMillis = millis();
-  unsigned long currentMillis = millis();
- 
-  if(currentMillis - previousMillis > 100) {
-    // save the last time you blinked the LED 
-    previousMillis = currentMillis;
-  }
+  wait(1000);
 
   rightFin.write(0);
   leftFin.write(0);
