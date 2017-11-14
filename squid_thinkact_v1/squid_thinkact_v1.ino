@@ -5,24 +5,23 @@
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
- * 11/7/2017
+ * 11/12/2017
  * Version 1
  */
 
-//library for Serial Transfer
+// Library for Serial Transfer
 #include <EasyTransfer.h>
+#include <SoftwareSerial.h>
 
-//libraries included to use PixyCam
-#include <SPI.h>  
+// Libraries included to use PixyCam
+#include <SPI.h>
 #include <Pixy.h>
 
-//library included to use servos
+// Library included to use servos
 #include<Servo.h>
 
-//libraries included to use motion shield
-#include "NineAxesMotion.h" 
+// Libraries included to use motor and motion shield
 #include <Wire.h>
-
 
 // CONSTANTS AND GLOBAL VARIABLES VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 // Constants
@@ -30,8 +29,8 @@ enum {RIGHT=-1, NONE=0, LEFT=1, STRAIGHT=2}; // Directions
 enum {RED=3, YELLOW=4, WHITE=5, HOME=6, DANCE=7, LOOP=8}; // Targets
 const int APPROACH_DIST = 10; // Distance from target to start turning, in inches
 const float K_P = 1.0; // Proportional constant for feedback control
-const int FORWARD_VELOCITY = 150; // Pump output for normal swimming
-const int TURNING_VELOCITY = 150; // Pump output for turning
+const int FORWARD_VELOCITY = 255; // Pump output for normal swimming
+const int TURNING_VELOCITY = 255; // Pump output for turning
 const int MAX_MISSION_LENGTH = 10; // Maximum number of targets in a mission
 const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy
 const int SERVO_MAX_POSITION = 170; // Maximum angle that servos can output
@@ -44,17 +43,17 @@ const bool TURN_VALVES = true; // Whether to use valves for steering
 const bool TURN_FINS = true; // Whether to use fins for steering
 
 // Pins
-const int FIN1 = 3; //right fin
-const int FIN2 = 9; //left fin
-const int TUBE1 = 10; //right tube pull
-const int TUBE2 = 11; //left tube pull
-const int VALVE2 = 12; //left valve through relay
-const int STOP = 4; //magnetic sensor pin to determin eStop
-const int PUMPE = 4; //pump PLL speed control pin
-const int PUMPM = 5; //pump motor plug
-const int VALVE1E = 7; //valve PLL speed control pin
-const int VALVE1M = 6; //valve motor plug
-
+const int FIN1 = 3; // Right fin
+const int FIN2 = 9; // Left fin
+const int TUBE1 = 10; // Right tube pull
+const int TUBE2 = 11; // Left tube pull
+const int VALVE2 = 12; // Left valve through relay
+const int STOP = 4; // Magnetic sensor pin to determin eStop
+const int PUMPE = 4; // Pump PLL speed control pin
+const int PUMPM = 5; // Pump motor plug
+const int VALVE1E = 7; // Valve PLL speed control pin
+const int VALVE1M = 6; // Valve motor plug
+const int MAX_BLOCKS = 6; // Maximum number of blocks sent from pixycam
 
 // Objects
 Pixy pixy; //creates PixyCam object to use
@@ -63,27 +62,25 @@ EasyTransfer ETin, ETout;
 SoftwareSerial XBee(2, 3); // RX, TX
 
 // State variables
-int direction = 0; // Computed direction to travel
-int *mission[MAX_MISSION_LENGTH]; // Ordered array of targets, e.g. {RED, YELLOW, WHITE, HOME, NONE}
+int direction = NONE; // Computed direction to travel
+int mission[MAX_MISSION_LENGTH]; // Ordered array of targets, e.g. {RED, YELLOW, WHITE, HOME, NONE}
 int target = 0; // Current target index
 int distance = 0; // Distance from target in inches
 int angle = 0; // Angle towards target in degrees CCW
 long previousMillis = 0; // Previous loop time in milliseconds
-boolean eStop, flood, temp = false; // eStop activated, hull flooding, electronics overheating
+boolean estop, flood, temp = false; // eStop activated, hull flooding, electronics overheating
 
 // Serial send/recieve structures
 struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-
-  uint16_t blocks;
+  Block blocks[MAX_BLOCKS];
 };
 
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-
-  uint16_t blocks;
+  Block blocks[MAX_BLOCKS];
 };
 
 // Give a name to the group of data
@@ -92,28 +89,27 @@ SEND_DATA_STRUCTURE txdata;
 
 // SETUP ROBOT CODE (RUN ONCE) SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
+  // Serial transfer initialization
   Serial.begin(9600);
   XBee.begin(9600);
-  //Serial transfer initialization
   ETin.begin(details(rxdata), &Serial);
   ETout.begin(details(txdata), &Serial);
 
-  AFMS.begin();
-  
+  // Camera intitialization
   pixy.init();
-  
+
+  // Pin initialization
   rightFin.attach(FIN1);
   leftFin.attach(FIN2);
   rightTube.attach(TUBE1);
   leftTube.attach(TUBE2);
-
   pinMode(PUMPM, OUTPUT);
   pinMode(VALVE1M, OUTPUT); 
   pinMode(VALVE2, OUTPUT); //left
   pinMode(STOP, INPUT);
-  
+
+  // E-Stop initialization
   digitalWrite(STOP, HIGH);
-  
   attachInterrupt(digitalPinToInterrupt(STOP), eStop, LOW);
 
   systemCheck();
@@ -123,30 +119,17 @@ void setup() {
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  digitalWrite(PUMPM, HIGH);
-  analogWrite(PUMPE, 255);
-  
-  if (Serial.available())
-  { // If data comes in from serial monitor, send it out to XBee
-    XBee.write(Serial.read());
-    mission = XBee.read(); //Probably not right!
-  }
-  if (XBee.available())
-  { // If data comes in from XBee, send it out to serial monitor
-    Serial.write(XBee.read());
-  }
-  
   downloadMission();
   readSenseArduino();
   think();
   act();
+  debug();
 }
 
 
 // CONTROL FUNCTIONS CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
-
-//delay loop
+// Delay loop
 void wait(int t){
   previousMillis = millis();
  
@@ -154,31 +137,55 @@ void wait(int t){
   }
 }
 
-// Check for new mission over Serial
+// Check for new mission over Serial in the format "m----" or "-"
 void downloadMission() {
-  // TODO
-  // Overwrite the targets array and set target=0 if a new mission exists
-  for (int i=0;i<MAX_MISSION_LENGTH;i++){
-    targets[i] = NONE;
+  int n = XBee.available();
+  if(n<1) {
+    return;
+  }
+  if(n>1 && XBee.read()!='m') {
+    return;
+  }
+  for (int i=0;i<min(n-1,1); i++) {
+    switch(XBee.read()) {
+      case '2': mission[i] = STRAIGHT; break;
+      case '1': mission[i] = LEFT; break;
+      case '3': mission[i] = RIGHT; break;
+      case 'r': mission[i] = RED; break;
+      case 'y': mission[i] = YELLOW; break;
+      case 'w': mission[i] = WHITE; break;
+      case 'h': mission[i] = HOME; break;
+      case 'd': mission[i] = DANCE; break;
+      case 'l': mission[i] = LOOP; break;
+      default: mission[i] = NONE;
+    }
+  }
+  for (int i=n;i<MAX_MISSION_LENGTH;i++){
+    mission[i] = NONE;
   }
   target = 0;
 }
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-  // TODO: get an array called "blocks" over Serial, with length "n"
   distance = -1;
   angle = 0;
 
-  //Not sending any data to other arduino, just recieving, right?
-  //If sending as well, needs to edit this
-  ETin.receiveData(); //recieves data: blocks
+  ETin.receiveData(); //recieves data: n, blocks
   wait(10);
 
-  for (int i=0; i<n; i++) {
-    if (blocks[i].signature==mission[target]-2) { // 1, 2, or 3
-      distance = CAMERA_RATIO*blocks[i].width;
-      angle = blocks[i].x-159; // 159 = center of screen
+  previousMillis = millis();
+  unsigned long currentMillis = millis();
+ 
+  if(currentMillis - previousMillis > 10) {
+    // save the last time you blinked the LED 
+    previousMillis = currentMillis;
+  }
+
+  for (int i=0; i<MAX_BLOCKS; i++) {
+    if (rxdata.blocks[i].signature==mission[target]-2) { // 1, 2, or 3
+      distance = CAMERA_RATIO*rxdata.blocks[i].width;
+      angle = rxdata.blocks[i].x-159; // 159 = center of screen
     }
   }
 }
@@ -189,7 +196,7 @@ void systemCheck(){
   leftFin.write(90);
   leftTube.write(90);
   rightTube.write(90);
-  digital.write(VALVE2, HIGH);
+  digitalWrite(VALVE2, HIGH);
   digitalWrite(PUMPM, HIGH);
   analogWrite(PUMPE, 255);
   digitalWrite(VALVE1M, HIGH);
@@ -207,7 +214,7 @@ void systemCheck(){
   leftFin.write(0);
   leftTube.write(0);
   rightTube.write(0);
-  digital.write(VALVE2, LOW);
+  digitalWrite(VALVE2, LOW);
   digitalWrite(PUMPM, LOW);
   analogWrite(PUMPE, 0);
   digitalWrite(VALVE1M, LOW);
@@ -216,24 +223,45 @@ void systemCheck(){
 
 //eStop function to shut off all motors
 void eStop(){
-  eStop = true;
+  estop = true;
   rightFin.write(0);
   leftFin.write(0);
   leftTube.write(0);
   rightTube.write(0);
-  digital.write(VALVE2, LOW);
+  digitalWrite(VALVE2, LOW);
   digitalWrite(PUMPM, LOW);
   analogWrite(PUMPE, 0);
   digitalWrite(VALVE1M, LOW);
   analogWrite(VALVE1E, 0); 
 }
 
+// Output current state over XBee
+void debug() {
+  XBee.print("Mission: ");
+  for (int i=0; i<MAX_MISSION_LENGTH; i++) {
+    XBee.print(mission[i]);
+  }
+  XBee.print(", Target: ");
+  XBee.print(target);
+  XBee.print(", Direction: ");
+  XBee.print(direction);
+  XBee.print(", Distance: ");
+  XBee.print(distance);
+  XBee.print(", Angle: ");
+  XBee.print(angle);
+  XBee.print(", Flood: ");
+  XBee.print(flood);
+  XBee.print(", Temp: ");
+  XBee.print(temp);
+  XBee.print(", E-Stop: ");
+  XBee.println(estop);
+}
 
 // THINK TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 void think() {
   if (mission[target]<=2) { // Manual override
     direction = mission[target];
-  } else if mission[target]==DANCE) { // Dance code
+  } else if (mission[target]==DANCE) { // Dance code
     direction = DANCE;
   } else if (distance<0) { // Target not visible
     direction = LEFT;
@@ -251,9 +279,12 @@ void think() {
 
 // ACT AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 void act() {
+  if(estop) {
+    move(0,0);
+    return;
+  }
   switch (direction) {
     case STRAIGHT: // Swim straight using proportional feedback control
-      int angleOut = int(K_P*angle);
       move(FORWARD_VELOCITY, int(K_P*angle));
       break;
     case LEFT: // Turn left
@@ -273,11 +304,9 @@ void act() {
 // Output motor values
 void move(int vel, int ang){
   // Set pump output
-  digitalWrite(PUMPM, HIGH);
-  analogWrite(PUMPE, 255);
   if(vel>0) {
     digitalWrite(PUMPM, HIGH);
-  analogWrite(PUMPE, 255);
+    analogWrite(PUMPE, vel);
   } else {
     digitalWrite(PUMPM, LOW);
     analogWrite(PUMPE, 0);
