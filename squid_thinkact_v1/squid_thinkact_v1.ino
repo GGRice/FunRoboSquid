@@ -5,7 +5,7 @@
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
- * 11/12/2017
+ * 11/14/2017
  * Version 1
  */
 
@@ -27,17 +27,18 @@
 // Constants
 enum {RIGHT=-1, NONE=0, LEFT=1, STRAIGHT=2}; // Directions
 enum {RED=3, YELLOW=4, WHITE=5, HOME=6, DANCE=7, LOOP=8}; // Targets
-const int APPROACH_DIST = 10; // Distance from target to start turning, in inches
+const int APPROACH_DIST = 10; // Distance from target to start turning (inches)
 const float K_P = 1.0; // Proportional constant for feedback control
 const int FORWARD_VELOCITY = 255; // Pump output for normal swimming
 const int TURNING_VELOCITY = 255; // Pump output for turning
 const int MAX_MISSION_LENGTH = 10; // Maximum number of targets in a mission
-const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy
+const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy (inches/pixel)
 const int SERVO_MAX_POSITION = 170; // Maximum angle that servos can output
 const int FIN_FORWARD_ANGLE = 10; // Left fin servo value for going forward (right is reversed)
 const int FIN_TURN_ANGLE = 170; // Left fin servo value for turning (right is reversed)
 const int TUBE_ZERO_ANGLE = 0; // Left tube servo default position for going forward (right is reversed)
 const int TURNING_ANGLE = 170; // Angle output for initiating a turn, cutoff for applying valves and fins
+const int MAX_BLOCKS = 6; // Maximum number of blocks sent from pixycam
 const bool TURN_TUBES = true; // Whether to use tube servos for steering
 const bool TURN_VALVES = true; // Whether to use valves for steering
 const bool TURN_FINS = true; // Whether to use fins for steering
@@ -53,7 +54,6 @@ const int PUMPE = 4; // Pump PLL speed control pin
 const int PUMPM = 5; // Pump motor plug
 const int VALVE1E = 7; // Valve PLL speed control pin
 const int VALVE1M = 6; // Valve motor plug
-const int MAX_BLOCKS = 6; // Maximum number of blocks sent from pixycam
 
 // Objects
 Pixy pixy; //creates PixyCam object to use
@@ -68,7 +68,7 @@ int target = 0; // Current target index
 int distance = 0; // Distance from target in inches
 int angle = 0; // Angle towards target in degrees CCW
 long previousMillis = 0; // Previous loop time in milliseconds
-boolean estop, flood, temp = false; // eStop activated, hull flooding, electronics overheating
+boolean estop, flood, temp = false; // E-Stop activated, hull flooding, electronics overheating
 
 // Serial send/recieve structures
 struct RECEIVE_DATA_STRUCTURE{
@@ -95,7 +95,7 @@ void setup() {
   ETin.begin(details(rxdata), &Serial);
   ETout.begin(details(txdata), &Serial);
 
-  // Camera intitialization
+  // Camera initialization
   pixy.init();
 
   // Pin initialization
@@ -104,8 +104,8 @@ void setup() {
   rightTube.attach(TUBE1);
   leftTube.attach(TUBE2);
   pinMode(PUMPM, OUTPUT);
-  pinMode(VALVE1M, OUTPUT); 
-  pinMode(VALVE2, OUTPUT); //left
+  pinMode(VALVE1M, OUTPUT); // Right
+  pinMode(VALVE2, OUTPUT); // Left
   pinMode(STOP, INPUT);
 
   // E-Stop initialization
@@ -113,7 +113,6 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(STOP), eStop, LOW);
 
   systemCheck();
-
 }
 
 
@@ -132,22 +131,19 @@ void loop() {
 // Delay loop
 void wait(int t){
   previousMillis = millis();
- 
-  while(millis() - previousMillis <= t) {
-  }
+  while(millis() - previousMillis <= t) {}
 }
 
-// Check for new mission over Serial in the format "m----" or "-"
+// Check for new mission over Serial in the format of a string of characters
 void downloadMission() {
   int n = XBee.available();
-  if(n<1) {
-    return;
-  }
-  if(n>1 && XBee.read()!='m') {
+  if(n<1) { // No message available
     return;
   }
   for (int i=0;i<min(n-1,1); i++) {
+    // Map input characters to desired targets
     switch(XBee.read()) {
+      case '>': return; // Debug message
       case '2': mission[i] = STRAIGHT; break;
       case '1': mission[i] = LEFT; break;
       case '3': mission[i] = RIGHT; break;
@@ -170,12 +166,10 @@ void downloadMission() {
 void readSenseArduino() {
   distance = -1;
   angle = 0;
-
   ETin.receiveData(); //recieves data: n, blocks
   wait(10);
-
   for (int i=0; i<MAX_BLOCKS; i++) {
-    if (rxdata.blocks[i].signature==mission[target]-2) { // 1, 2, or 3
+    if (rxdata.blocks[i].signature==mission[target]-2) { // R,Y,W,H = 1,2,3,4
       distance = CAMERA_RATIO*rxdata.blocks[i].width;
       angle = rxdata.blocks[i].x-159; // 159 = center of screen
     }
@@ -184,27 +178,12 @@ void readSenseArduino() {
 
 //Check all systems
 void systemCheck(){
-  rightFin.write(90);
-  leftFin.write(90);
-  leftTube.write(90);
-  rightTube.write(90);
-  digitalWrite(VALVE2, HIGH);
-  digitalWrite(PUMPM, HIGH);
-  analogWrite(PUMPE, 255);
-  digitalWrite(VALVE1M, HIGH);
-  analogWrite(VALVE1E, 255);
-
   wait(1000);
-
-  rightFin.write(0);
-  leftFin.write(0);
-  leftTube.write(0);
-  rightTube.write(0);
-  digitalWrite(VALVE2, LOW);
-  digitalWrite(PUMPM, LOW);
-  analogWrite(PUMPE, 0);
-  digitalWrite(VALVE1M, LOW);
-  analogWrite(VALVE1E, 0); 
+  move(0, TURNING_ANGLE);
+  wait(1000);
+  move(0, -TURNING_ANGLE);
+  wait(1000);
+  move(0, 0);
 }
 
 //eStop function to shut off all motors
@@ -223,7 +202,7 @@ void eStop(){
 
 // Output current state over XBee
 void debug() {
-  XBee.print("Mission: ");
+  XBee.print(">>> Mission: ");
   for (int i=0; i<MAX_MISSION_LENGTH; i++) {
     XBee.print(mission[i]);
   }
@@ -242,6 +221,7 @@ void debug() {
   XBee.print(", E-Stop: ");
   XBee.println(estop);
 }
+
 
 // THINK TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 void think() {
@@ -308,26 +288,26 @@ void move(int vel, int ang){
     rightTube.write(SERVO_MAX_POSITION-TUBE_ZERO_ANGLE);
   }
   // Set fin angles
-  if(TURN_FINS && ang>=TURNING_ANGLE) { // left
+  if(TURN_FINS && ang>=TURNING_ANGLE) { // Left
     leftFin.write(FIN_TURN_ANGLE);
     rightFin.write(FIN_FORWARD_ANGLE);
-  } else if(TURN_FINS && ang<=-TURNING_ANGLE) { // right
+  } else if(TURN_FINS && ang<=-TURNING_ANGLE) { // Right
     leftFin.write(FIN_FORWARD_ANGLE);
     rightFin.write(FIN_TURN_ANGLE);
-  } else { // straight
+  } else { // Straight
     leftFin.write(FIN_FORWARD_ANGLE);
     rightFin.write(FIN_FORWARD_ANGLE);
   }
   // Set valve states
-  if(TURN_VALVES && ang>=TURNING_ANGLE) { // left
+  if(TURN_VALVES && ang>=TURNING_ANGLE) { // Left
     digitalWrite(VALVE1M, LOW);
     analogWrite(VALVE1E, 0);
     digitalWrite(VALVE2, HIGH);
-  } else if(TURN_VALVES && ang<=-TURNING_ANGLE) { // right
+  } else if(TURN_VALVES && ang<=-TURNING_ANGLE) { // Right
     digitalWrite(VALVE1M, HIGH);
     analogWrite(VALVE1E, 255);
     digitalWrite(VALVE2, LOW);
-  } else { // straight
+  } else { // Straight
     digitalWrite(VALVE1M, HIGH);
     analogWrite(VALVE1E, 255);
     digitalWrite(VALVE2, HIGH);
