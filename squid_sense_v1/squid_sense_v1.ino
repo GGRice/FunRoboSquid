@@ -31,10 +31,6 @@ EasyTransfer ETin, ETout; //creates serial structures to transfer data
 //temp true if electronics overheating
 boolean flood, temp = False;
 
-//lcd screen setup CHANGE DEPENDING ON LCD
-const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
-
 
 //array to hold info about every bouy
 //c=colour, x=x pos, y=y pos, s=size
@@ -85,7 +81,6 @@ void loop() {
   
   Etout.sendData();
   
-  printLCDScreen();
 }
 
 //CONTROL FUNCTIONS CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -103,17 +98,6 @@ void temp(){//temp 150F
 
   if(dat >= 65.5)
     temp = true;
-}
-
-void printLCDScreen(){
-  flood();
-  temp();
-  if(!flood && !temp)
-    lcd.print("Happy :)")
-  else
-    lcd.print("PROBLEM!!")
-
-  lcd.display();
 }
 
 

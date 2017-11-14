@@ -118,8 +118,6 @@ void setup() {
 
   systemCheck();
 
-  //delay before start code
-  wait(5000);
 }
 
 
@@ -151,11 +149,8 @@ void loop() {
 //delay loop
 void wait(int t){
   previousMillis = millis();
-  unsigned long currentMillis = millis();
  
-  if(currentMillis - previousMillis > t) {
-    // save the last time you blinked the LED 
-    previousMillis = currentMillis;
+  while(millis() - previousMillis <= t) {
   }
 }
 
@@ -178,14 +173,7 @@ void readSenseArduino() {
   //Not sending any data to other arduino, just recieving, right?
   //If sending as well, needs to edit this
   ETin.receiveData(); //recieves data: blocks
-
-  previousMillis = millis();
-  unsigned long currentMillis = millis();
- 
-  if(currentMillis - previousMillis > 10) {
-    // save the last time you blinked the LED 
-    previousMillis = currentMillis;
-  }
+  wait(10);
 
   for (int i=0; i<n; i++) {
     if (blocks[i].signature==mission[target]-2) { // 1, 2, or 3
