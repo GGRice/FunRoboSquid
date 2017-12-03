@@ -1,8 +1,7 @@
 /**
- * Sprint 2 Code Outline
+ * Sprint 2 Code
  * Sense
  * SquidBot
- * Outline of code for sprint 2
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
@@ -11,6 +10,7 @@
  */
 //library for serial communication
 #include <EasyTransfer.h>
+#include <SoftwareSerial.h> //need this library to run Software Serial
 
 //libraries included to use PixyCam
 #include <SPI.h>  
@@ -27,6 +27,7 @@
 //Constants and Global Variables VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 Pixy pixy; //creates PixyCam object to use
 EasyTransfer ETin, ETout; //creates serial structures to transfer data
+SoftwareSerial Arduino(11, 10);
 
 //flood True if hull flooding
 //temp true if electronics overheating
@@ -35,46 +36,48 @@ boolean flood, temp = false;
 
 const int COLUMNS = 16;
 const int ROWS = 1;
-const int FLOODPIN = 1; // ?????
+const int FLOODPIN = 3; 
 const int MAX_BLOCKS = 6;
 
-
-//Serial structures 
-struct RECEIVE_DATA_STRUCTURE{
-  //put your variable definitions here for the data you want to receive
-  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  Block blocks[MAX_BLOCKS];
-};
 
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
   Block blocks[MAX_BLOCKS];
+  int16_t test;
 };
 
 //give a name to the group of data
-RECEIVE_DATA_STRUCTURE rxdata;
 SEND_DATA_STRUCTURE txdata;
 
 
 //SETUP ROBOT CODE (RUN ONCE)SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
   Serial.begin(9600);
+  Arduino.begin(9600);
   pixy.init();
 
-  ETin.begin(details(rxdata), &Serial);
-  ETout.begin(details(txdata), &Serial);
+  ETout.begin(details(txdata), &Arduino);
 
-  lcd.begin(COLUMNS, ROWS);
+  Serial.println("SETUP");
+
 }
 
 //ROBOT CONTROL LOOP (RUNS UNTIL STOP)LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
+  Serial.println("MAIN LOOP");
+  txdata.test = 14;
+  Serial.println(txdata.test);
+  ETout.sendData();
   for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
     txdata.blocks[i] = pixy.blocks[i];
+    Serial.println(1);
   }
   memset(txdata.blocks,pixy.getBlocks()*sizeof(Block),MAX_BLOCKS*sizeof(Block));
   ETout.sendData();
+
+  //checkFlood();
+  //checkTemp();
   
 }
 
@@ -83,16 +86,22 @@ void loop() {
 
 void checkFlood(){
   int liquidLevel = digitalRead(FLOODPIN);
-  if(liquidLevel == HIGH)
+  if(liquidLevel == HIGH){
     flood = true;
+    Serial.println("FLOOD");
+  }
+  Serial.println("Water Good");
 }
 
 void checkTemp(){//temp 150F
   int val=analogRead(A0);//Connect LM35 on Analog 0
   float dat = (double) val * (5/10.24); 
 
-  if(dat >= 65.5)
+  if(dat >= 65.5){
     temp = true;
+    Serial.println("FIRE");
+  }
+  Serial.println("Temp Good");
 }
 
 

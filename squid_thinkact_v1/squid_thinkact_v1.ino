@@ -1,5 +1,5 @@
 /**
- * Sprint 2 Code Outline
+ * Sprint 2 Code
  * Think/Act
  * SquidBot
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
@@ -50,16 +50,17 @@ const int TUBE1 = 10; // Right tube pull
 const int TUBE2 = 11; // Left tube pull
 const int VALVE2 = 12; // Left valve through relay
 const int STOP = 4; // Magnetic sensor pin to determin eStop
-const int PUMPE = 4; // Pump PLL speed control pin
-const int PUMPM = 5; // Pump motor plug
-const int VALVE1E = 7; // Valve PLL speed control pin
-const int VALVE1M = 6; // Valve motor plug
+const int PUMPE = 7; // Pump PLL speed control pin
+const int PUMPM = 6; // Pump motor plug
+const int VALVE1E = 4; // Valve PLL speed control pin
+const int VALVE1M = 5; // Valve motor plug
 
 // Objects
 Pixy pixy; //creates PixyCam object to use
 Servo rightFin, leftFin, leftTube, rightTube;
 EasyTransfer ETin, ETout; 
 SoftwareSerial XBee(2, 3); // RX, TX
+SoftwareSerial Arduino(11,10); //communicate with sense Arduino
 
 // State variables
 int direction = NONE; // Computed direction to travel
@@ -75,25 +76,22 @@ struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
   Block blocks[MAX_BLOCKS];
+  int16_t test;
 };
 
-struct SEND_DATA_STRUCTURE{
-  //put your variable definitions here for the data you want to receive
-  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  Block blocks[MAX_BLOCKS];
-};
 
 // Give a name to the group of data
 RECEIVE_DATA_STRUCTURE rxdata;
-SEND_DATA_STRUCTURE txdata;
 
 // SETUP ROBOT CODE (RUN ONCE) SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
   // Serial transfer initialization
   Serial.begin(9600);
+  Arduino.begin(9600);
   XBee.begin(9600);
-  ETin.begin(details(rxdata), &Serial);
-  ETout.begin(details(txdata), &Serial);
+  ETin.begin(details(rxdata), &Arduino);
+
+  Serial.println("In setup");
 
   // Camera initialization
   pixy.init();
@@ -112,17 +110,30 @@ void setup() {
   digitalWrite(STOP, HIGH);
   attachInterrupt(digitalPinToInterrupt(STOP), eStop, LOW);
 
+  Serial.println("About to system check");
   systemCheck();
+  Serial.println("System check done");
 }
 
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
+  if(ETin.receiveData()){
+    Serial.println(rxdata.test);
+  }
+  delay(250);
+  
+  Serial.println("In loop");
   downloadMission();
+  Serial.println("Mission downloaded");
   readSenseArduino();
+  Serial.println("Sense Arduino read");
   think();
+  Serial.println("Had a nice thought");
   act();
+  Serial.println("Acted on it");
   debug();
+  Serial.println("Just debugged");
 }
 
 
@@ -136,6 +147,7 @@ void wait(int t){
 
 // Check for new mission over Serial in the format of a string of characters
 void downloadMission() {
+  Serial.println("In downloadMission");
   int n = XBee.available();
   if(n<1) { // No message available
     return;
@@ -164,20 +176,24 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
+  Serial.println("In readSenseArduino");
   distance = -1;
   angle = 0;
-  ETin.receiveData(); //recieves data: n, blocks
-  wait(10);
-  for (int i=0; i<MAX_BLOCKS; i++) {
-    if (rxdata.blocks[i].signature==mission[target]-2) { // R,Y,W,H = 1,2,3,4
-      distance = CAMERA_RATIO*rxdata.blocks[i].width;
-      angle = rxdata.blocks[i].x-159; // 159 = center of screen
+  if(ETin.receiveData()){ //recieves data: n, blocks
+    Serial.println(rxdata.test);
+    wait(10);
+    for (int i=0; i<MAX_BLOCKS; i++) {
+      if (rxdata.blocks[i].signature==mission[target]-2) { // R,Y,W,H = 1,2,3,4
+        distance = CAMERA_RATIO*rxdata.blocks[i].width;
+        angle = rxdata.blocks[i].x-159; // 159 = center of screen
+      }
     }
   }
 }
 
 //Check all systems
 void systemCheck(){
+  Serial.println("In system check");
   wait(1000);
   move(0, TURNING_ANGLE);
   wait(1000);
@@ -202,6 +218,7 @@ void eStop(){
 
 // Output current state over XBee
 void debug() {
+  Serial.println("In debug");
   XBee.print(">>> Mission: ");
   for (int i=0; i<MAX_MISSION_LENGTH; i++) {
     XBee.print(mission[i]);
@@ -225,6 +242,7 @@ void debug() {
 
 // THINK TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 void think() {
+  Serial.println("In think");
   if (mission[target]<=2) { // Manual override
     direction = mission[target];
   } else if (mission[target]==DANCE) { // Dance code
@@ -245,6 +263,7 @@ void think() {
 
 // ACT AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 void act() {
+  Serial.println("In act");
   if(estop) {
     move(0,0);
     return;
@@ -270,6 +289,7 @@ void act() {
 // Output motor values
 void move(int vel, int ang){
   // Set pump output
+  Serial.println("In move");
   if(vel>0) {
     digitalWrite(PUMPM, HIGH);
     analogWrite(PUMPE, vel);
