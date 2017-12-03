@@ -27,7 +27,7 @@
 //Constants and Global Variables VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 Pixy pixy; //creates PixyCam object to use
 EasyTransfer ETin, ETout; //creates serial structures to transfer data
-SoftwareSerial Arduino(11, 10);
+SoftwareSerial Arduino(12, 13);
 
 //flood True if hull flooding
 //temp true if electronics overheating
@@ -43,7 +43,7 @@ const int MAX_BLOCKS = 6;
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  Block blocks[MAX_BLOCKS];
+  //Block blocks[MAX_BLOCKS];
   int16_t test;
 };
 
@@ -53,28 +53,30 @@ SEND_DATA_STRUCTURE txdata;
 
 //SETUP ROBOT CODE (RUN ONCE)SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
-  Serial.begin(9600);
-  Arduino.begin(9600);
+  //Serial.begin(9600);
+  
   pixy.init();
+  Arduino.begin(4800);
 
   ETout.begin(details(txdata), &Arduino);
 
-  Serial.println("SETUP");
+  //Serial.println("SETUP");
 
 }
 
 //ROBOT CONTROL LOOP (RUNS UNTIL STOP)LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  Serial.println("MAIN LOOP");
+  //Serial.println("MAIN LOOP");
   txdata.test = 14;
-  Serial.println(txdata.test);
+  //Serial.println(txdata.test);
+  
+//  for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
+//    txdata.blocks[i] = pixy.blocks[i];
+//    Serial.println(1);
+//  }
+//  memset(txdata.blocks,pixy.getBlocks()*sizeof(Block),MAX_BLOCKS*sizeof(Block));
   ETout.sendData();
-  for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
-    txdata.blocks[i] = pixy.blocks[i];
-    Serial.println(1);
-  }
-  memset(txdata.blocks,pixy.getBlocks()*sizeof(Block),MAX_BLOCKS*sizeof(Block));
-  ETout.sendData();
+  delay(50);
 
   //checkFlood();
   //checkTemp();
@@ -88,9 +90,9 @@ void checkFlood(){
   int liquidLevel = digitalRead(FLOODPIN);
   if(liquidLevel == HIGH){
     flood = true;
-    Serial.println("FLOOD");
+    //Serial.println("FLOOD");
   }
-  Serial.println("Water Good");
+  //Serial.println("Water Good");
 }
 
 void checkTemp(){//temp 150F
@@ -99,9 +101,9 @@ void checkTemp(){//temp 150F
 
   if(dat >= 65.5){
     temp = true;
-    Serial.println("FIRE");
+    //Serial.println("FIRE");
   }
-  Serial.println("Temp Good");
+  //Serial.println("Temp Good");
 }
 
 

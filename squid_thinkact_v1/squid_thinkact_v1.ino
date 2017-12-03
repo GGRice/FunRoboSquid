@@ -48,7 +48,7 @@ const int FIN1 = 3; // Right fin
 const int FIN2 = 9; // Left fin
 const int TUBE1 = 10; // Right tube pull
 const int TUBE2 = 11; // Left tube pull
-const int VALVE2 = 12; // Left valve through relay
+const int VALVE2 = 2; // Left valve through relay
 const int STOP = 4; // Magnetic sensor pin to determin eStop
 const int PUMPE = 7; // Pump PLL speed control pin
 const int PUMPM = 6; // Pump motor plug
@@ -56,11 +56,9 @@ const int VALVE1E = 4; // Valve PLL speed control pin
 const int VALVE1M = 5; // Valve motor plug
 
 // Objects
-Pixy pixy; //creates PixyCam object to use
 Servo rightFin, leftFin, leftTube, rightTube;
 EasyTransfer ETin, ETout; 
-SoftwareSerial XBee(2, 3); // RX, TX
-SoftwareSerial Arduino(11,10); //communicate with sense Arduino
+SoftwareSerial Arduino(12,13); //communicate with sense Arduino
 
 // State variables
 int direction = NONE; // Computed direction to travel
@@ -75,7 +73,7 @@ boolean estop, flood, temp = false; // E-Stop activated, hull flooding, electron
 struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  Block blocks[MAX_BLOCKS];
+  //Block blocks[MAX_BLOCKS];
   int16_t test;
 };
 
@@ -87,14 +85,10 @@ RECEIVE_DATA_STRUCTURE rxdata;
 void setup() {
   // Serial transfer initialization
   Serial.begin(9600);
-  Arduino.begin(9600);
-  XBee.begin(9600);
+  Arduino.begin(4800);
   ETin.begin(details(rxdata), &Arduino);
 
   Serial.println("In setup");
-
-  // Camera initialization
-  pixy.init();
 
   // Pin initialization
   rightFin.attach(FIN1);
@@ -121,7 +115,7 @@ void loop() {
   if(ETin.receiveData()){
     Serial.println(rxdata.test);
   }
-  delay(250);
+  delay(50);
   
   Serial.println("In loop");
   downloadMission();
@@ -148,13 +142,13 @@ void wait(int t){
 // Check for new mission over Serial in the format of a string of characters
 void downloadMission() {
   Serial.println("In downloadMission");
-  int n = XBee.available();
+  int n = Serial.available();
   if(n<1) { // No message available
     return;
   }
   for (int i=0;i<min(n-1,1); i++) {
     // Map input characters to desired targets
-    switch(XBee.read()) {
+    switch(Serial.read()) {
       case '>': return; // Debug message
       case '2': mission[i] = STRAIGHT; break;
       case '1': mission[i] = LEFT; break;
@@ -182,12 +176,12 @@ void readSenseArduino() {
   if(ETin.receiveData()){ //recieves data: n, blocks
     Serial.println(rxdata.test);
     wait(10);
-    for (int i=0; i<MAX_BLOCKS; i++) {
-      if (rxdata.blocks[i].signature==mission[target]-2) { // R,Y,W,H = 1,2,3,4
-        distance = CAMERA_RATIO*rxdata.blocks[i].width;
-        angle = rxdata.blocks[i].x-159; // 159 = center of screen
-      }
-    }
+//    for (int i=0; i<MAX_BLOCKS; i++) {
+//      if (rxdata.blocks[i].signature==mission[target]-2) { // R,Y,W,H = 1,2,3,4
+//        distance = CAMERA_RATIO*rxdata.blocks[i].width;
+//        angle = rxdata.blocks[i].x-159; // 159 = center of screen
+//      }
+//    }
   }
 }
 
@@ -216,27 +210,27 @@ void eStop(){
   analogWrite(VALVE1E, 0); 
 }
 
-// Output current state over XBee
+// Output current state over Xbee
 void debug() {
   Serial.println("In debug");
-  XBee.print(">>> Mission: ");
+  Serial.print(">>> Mission: ");
   for (int i=0; i<MAX_MISSION_LENGTH; i++) {
-    XBee.print(mission[i]);
+    Serial.print(mission[i]);
   }
-  XBee.print(", Target: ");
-  XBee.print(target);
-  XBee.print(", Direction: ");
-  XBee.print(direction);
-  XBee.print(", Distance: ");
-  XBee.print(distance);
-  XBee.print(", Angle: ");
-  XBee.print(angle);
-  XBee.print(", Flood: ");
-  XBee.print(flood);
-  XBee.print(", Temp: ");
-  XBee.print(temp);
-  XBee.print(", E-Stop: ");
-  XBee.println(estop);
+  Serial.print(", Target: ");
+  Serial.print(target);
+  Serial.print(", Direction: ");
+  Serial.print(direction);
+  Serial.print(", Distance: ");
+  Serial.print(distance);
+  Serial.print(", Angle: ");
+  Serial.print(angle);
+  Serial.print(", Flood: ");
+  Serial.print(flood);
+  Serial.print(", Temp: ");
+  Serial.print(temp);
+  Serial.print(", E-Stop: ");
+  Serial.println(estop);
 }
 
 
