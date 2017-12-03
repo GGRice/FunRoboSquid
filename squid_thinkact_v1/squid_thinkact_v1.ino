@@ -73,7 +73,7 @@ boolean estop, flood, temp = false; // E-Stop activated, hull flooding, electron
 struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  //Block blocks[MAX_BLOCKS];
+  int blocks[MAX_BLOCKS];
   int16_t test;
 };
 

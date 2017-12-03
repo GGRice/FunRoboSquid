@@ -13,8 +13,10 @@
 #include <SoftwareSerial.h> //need this library to run Software Serial
 
 //libraries included to use PixyCam
-#include <SPI.h>  
-#include <Pixy.h>
+//#include <SPI.h>  
+#include <PixyI2C.h>
+#include <Wire.h>
+
 
 //library included to use servos
 #include<Servo.h>
@@ -25,7 +27,7 @@
 
 
 //Constants and Global Variables VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
-Pixy pixy; //creates PixyCam object to use
+PixyI2C pixy; //creates PixyCam object to use
 EasyTransfer ETin, ETout; //creates serial structures to transfer data
 SoftwareSerial Arduino(12, 13);
 
@@ -43,7 +45,7 @@ const int MAX_BLOCKS = 6;
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  //Block blocks[MAX_BLOCKS];
+  int blocks[MAX_BLOCKS];
   int16_t test;
 };
 
