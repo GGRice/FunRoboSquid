@@ -73,8 +73,9 @@ boolean estop, flood, temp = false; // E-Stop activated, hull flooding, electron
 struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  int blocks[MAX_BLOCKS];
-  int16_t test;
+  float widths[MAX_BLOCKS];
+  int signatures[MAX_BLOCKS];
+  float positions[MAX_BLOCKS];
 };
 
 
@@ -112,9 +113,6 @@ void setup() {
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  if(ETin.receiveData()){
-    Serial.println(rxdata.test);
-  }
   delay(50);
   
   Serial.println("In loop");
@@ -174,14 +172,13 @@ void readSenseArduino() {
   distance = -1;
   angle = 0;
   if(ETin.receiveData()){ //recieves data: n, blocks
-    Serial.println(rxdata.test);
     wait(10);
-//    for (int i=0; i<MAX_BLOCKS; i++) {
-//      if (rxdata.blocks[i].signature==mission[target]-2) { // R,Y,W,H = 1,2,3,4
-//        distance = CAMERA_RATIO*rxdata.blocks[i].width;
-//        angle = rxdata.blocks[i].x-159; // 159 = center of screen
-//      }
-//    }
+    for (int i=0; i<MAX_BLOCKS; i++) {
+      if (rxdata.signatures[i]==mission[target]-2) { // R,Y,W,H = 1,2,3,4
+        distance = CAMERA_RATIO*rxdata.widths[i];
+        angle = rxdata.positions[i]-159; // 159 = center of screen
+      }
+    }
   }
 }
 

@@ -45,8 +45,9 @@ const int MAX_BLOCKS = 6;
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  int blocks[MAX_BLOCKS];
-  int16_t test;
+  float widths[MAX_BLOCKS];
+  int signatures[MAX_BLOCKS];
+  float positions[MAX_BLOCKS];
 };
 
 //give a name to the group of data
@@ -69,14 +70,15 @@ void setup() {
 //ROBOT CONTROL LOOP (RUNS UNTIL STOP)LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
   //Serial.println("MAIN LOOP");
-  txdata.test = 14;
   //Serial.println(txdata.test);
-  
-//  for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
-//    txdata.blocks[i] = pixy.blocks[i];
-//    Serial.println(1);
-//  }
-//  memset(txdata.blocks,pixy.getBlocks()*sizeof(Block),MAX_BLOCKS*sizeof(Block));
+  for (int i=0; i<MAX_BLOCKS; i++) {
+    txdata.signatures[i] = 0;
+  }
+  for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
+    txdata.widths[i] = pixy.blocks[i].width;
+    txdata.positions[i] = pixy.blocks[i].width;
+    txdata.signatures[i] = pixy.blocks[i].signature;
+  }
   ETout.sendData();
   delay(50);
 
