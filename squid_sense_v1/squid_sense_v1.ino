@@ -33,13 +33,14 @@ SoftwareSerial Arduino(12, 13);
 
 //flood True if hull flooding
 //temp true if electronics overheating
-boolean flood, temp = false;
+boolean flood, temp, estop = false;
 
 
 const int COLUMNS = 16;
 const int ROWS = 1;
 const int FLOODPIN = 3; 
 const int MAX_BLOCKS = 6;
+const int STOP = 4; // Magnetic sensor pin to determin eStop
 
 
 struct SEND_DATA_STRUCTURE{
@@ -48,6 +49,7 @@ struct SEND_DATA_STRUCTURE{
   float widths[MAX_BLOCKS];
   int signatures[MAX_BLOCKS];
   float positions[MAX_BLOCKS];
+  boolean estop;
 };
 
 //give a name to the group of data
@@ -79,6 +81,9 @@ void loop() {
     txdata.positions[i] = pixy.blocks[i].width;
     txdata.signatures[i] = pixy.blocks[i].signature;
   }
+  
+  txdata.estop = digitalRead(STOP);
+
   ETout.sendData();
   delay(50);
 
@@ -109,6 +114,10 @@ void checkTemp(){//temp 150F
   }
   //Serial.println("Temp Good");
 }
+
+
+
+
 
 
 

@@ -49,7 +49,6 @@ const int FIN2 = 9; // Left fin
 const int TUBE1 = 10; // Right tube pull
 const int TUBE2 = 11; // Left tube pull
 const int VALVE2 = 2; // Left valve through relay
-const int STOP = 4; // Magnetic sensor pin to determin eStop
 const int PUMPE = 7; // Pump PLL speed control pin
 const int PUMPM = 6; // Pump motor plug
 const int VALVE1E = 4; // Valve PLL speed control pin
@@ -67,7 +66,7 @@ int target = 0; // Current target index
 int distance = 0; // Distance from target in inches
 int angle = 0; // Angle towards target in degrees CCW
 long previousMillis = 0; // Previous loop time in milliseconds
-boolean estop, flood, temp = false; // E-Stop activated, hull flooding, electronics overheating
+boolean flood, temp = false; // E-Stop activated, hull flooding, electronics overheating
 
 // Serial send/recieve structures
 struct RECEIVE_DATA_STRUCTURE{
@@ -76,6 +75,7 @@ struct RECEIVE_DATA_STRUCTURE{
   float widths[MAX_BLOCKS];
   int signatures[MAX_BLOCKS];
   float positions[MAX_BLOCKS];
+  boolean estop;
 };
 
 
@@ -173,6 +173,9 @@ void readSenseArduino() {
   angle = 0;
   if(ETin.receiveData()){ //recieves data: n, blocks
     wait(10);
+    if(rxdata.estop){
+      eStop();
+    }
     for (int i=0; i<MAX_BLOCKS; i++) {
       if (rxdata.signatures[i]%3==mission[target]-2) { // R,Y,W,H = 1,2,3,4
         distance = CAMERA_RATIO*rxdata.widths[i];
