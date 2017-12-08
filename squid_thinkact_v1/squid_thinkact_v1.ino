@@ -5,7 +5,7 @@
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
- * 11/14/2017
+ * 12/8/2017
  * Version 1
  */
 
@@ -26,7 +26,7 @@
 // CONSTANTS AND GLOBAL VARIABLES VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 // Constants
 enum {RIGHT=-1, NONE=0, LEFT=1, STRAIGHT=2}; // Directions
-enum {RED=3, YELLOW=4, WHITE=5, HOME=6, DANCE=7, LOOP=8}; // Targets
+enum {GREEN=3, YELLOW=4, RED=5, HOME=6, DANCE=7, LOOP=8}; // Targets
 const int APPROACH_DIST = 10; // Distance from target to start turning (inches)
 const float K_P = 1.0; // Proportional constant for feedback control
 const int FORWARD_VELOCITY = 255; // Pump output for normal swimming
@@ -89,7 +89,7 @@ void setup() {
   Arduino.begin(4800);
   ETin.begin(details(rxdata), &Arduino);
 
-  Serial.println("In setup");
+//  Serial.println("In setup");
 
   // Pin initialization
   rightFin.attach(FIN1);
@@ -105,9 +105,9 @@ void setup() {
   digitalWrite(STOP, HIGH);
   attachInterrupt(digitalPinToInterrupt(STOP), eStop, LOW);
 
-  Serial.println("About to system check");
+  Serial.println("Beginning system check");
   systemCheck();
-  Serial.println("System check done");
+  Serial.println("System check complete");
 }
 
 
@@ -115,17 +115,17 @@ void setup() {
 void loop() {
   delay(50);
   
-  Serial.println("In loop");
+//  Serial.println("In loop");
   downloadMission();
-  Serial.println("Mission downloaded");
+//  Serial.println("Mission downloaded");
   readSenseArduino();
-  Serial.println("Sense Arduino read");
+//  Serial.println("Sense Arduino read");
   think();
-  Serial.println("Had a nice thought");
+//  Serial.println("Had a nice thought");
   act();
-  Serial.println("Acted on it");
+//  Serial.println("Acted on it");
   debug();
-  Serial.println("Just debugged");
+//  Serial.println("Just debugged");
 }
 
 
@@ -139,7 +139,7 @@ void wait(int t){
 
 // Check for new mission over Serial in the format of a string of characters
 void downloadMission() {
-  Serial.println("In downloadMission");
+//  Serial.println("In downloadMission");
   int n = Serial.available();
   if(n<1) { // No message available
     return;
@@ -153,7 +153,7 @@ void downloadMission() {
       case '3': mission[i] = RIGHT; break;
       case 'r': mission[i] = RED; break;
       case 'y': mission[i] = YELLOW; break;
-      case 'w': mission[i] = WHITE; break;
+      case 'g': mission[i] = GREEN; break;
       case 'h': mission[i] = HOME; break;
       case 'd': mission[i] = DANCE; break;
       case 'l': mission[i] = LOOP; break;
@@ -168,13 +168,13 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-  Serial.println("In readSenseArduino");
+//  Serial.println("In readSenseArduino");
   distance = -1;
   angle = 0;
   if(ETin.receiveData()){ //recieves data: n, blocks
     wait(10);
     for (int i=0; i<MAX_BLOCKS; i++) {
-      if (rxdata.signatures[i]==mission[target]-2) { // R,Y,W,H = 1,2,3,4
+      if (rxdata.signatures[i]%3==mission[target]-2) { // R,Y,W,H = 1,2,3,4
         distance = CAMERA_RATIO*rxdata.widths[i];
         angle = rxdata.positions[i]-159; // 159 = center of screen
       }
@@ -184,7 +184,7 @@ void readSenseArduino() {
 
 //Check all systems
 void systemCheck(){
-  Serial.println("In system check");
+//  Serial.println("In system check");
   wait(1000);
   move(0, TURNING_ANGLE);
   wait(1000);
@@ -209,7 +209,7 @@ void eStop(){
 
 // Output current state over Xbee
 void debug() {
-  Serial.println("In debug");
+//  Serial.println("In debug");
   Serial.print(">>> Mission: ");
   for (int i=0; i<MAX_MISSION_LENGTH; i++) {
     Serial.print(mission[i]);
@@ -233,7 +233,7 @@ void debug() {
 
 // THINK TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 void think() {
-  Serial.println("In think");
+//  Serial.println("In think");
   if (mission[target]<=2) { // Manual override
     direction = mission[target];
   } else if (mission[target]==DANCE) { // Dance code
@@ -254,7 +254,7 @@ void think() {
 
 // ACT AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 void act() {
-  Serial.println("In act");
+//  Serial.println("In act");
   if(estop) {
     move(0,0);
     return;
@@ -280,7 +280,7 @@ void act() {
 // Output motor values
 void move(int vel, int ang){
   // Set pump output
-  Serial.println("In move");
+//  Serial.println("In move");
   if(vel>0) {
     digitalWrite(PUMPM, HIGH);
     analogWrite(PUMPE, vel);
