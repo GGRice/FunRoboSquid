@@ -5,7 +5,7 @@
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
- * 12/8/2017
+ * 10/25/2017
  * Version 1
  */
 //library for serial communication
@@ -41,6 +41,7 @@ const int ROWS = 1;
 const int FLOODPIN = 3; 
 const int MAX_BLOCKS = 6;
 const int STOP = 4; // Magnetic sensor pin to determin eStop
+const int TEMP = A0;
 
 
 struct SEND_DATA_STRUCTURE{
@@ -66,6 +67,9 @@ void setup() {
   ETout.begin(details(txdata), &Arduino);
 
   //Serial.println("SETUP");
+  pinMode(STOP, INPUT);
+  pinMode(FLOODPIN, INPUT);
+  
 
 }
 
@@ -105,7 +109,7 @@ void checkFlood(){
 }
 
 void checkTemp(){//temp 150F
-  int val=analogRead(A0);//Connect LM35 on Analog 0
+  int val=analogRead(TEMP);//Connect LM35 on Analog 0
   float dat = (double) val * (5/10.24); 
 
   if(dat >= 65.5){
