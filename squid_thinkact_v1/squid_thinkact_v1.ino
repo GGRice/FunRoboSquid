@@ -5,7 +5,7 @@
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
- * 12/8/2017
+ * 11/14/2017
  * Version 1
  */
 
@@ -26,7 +26,7 @@
 // CONSTANTS AND GLOBAL VARIABLES VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 // Constants
 enum {RIGHT=-1, NONE=0, LEFT=1, STRAIGHT=2}; // Directions
-enum {GREEN=3, YELLOW=4, RED=5, HOME=6, DANCE=7, LOOP=8}; // Targets
+enum {RED=3, YELLOW=4, WHITE=5, HOME=6, DANCE=7, LOOP=8}; // Targets
 const int APPROACH_DIST = 10; // Distance from target to start turning (inches)
 const float K_P = 1.0; // Proportional constant for feedback control
 const int FORWARD_VELOCITY = 255; // Pump output for normal swimming
@@ -38,7 +38,7 @@ const int FIN_FORWARD_ANGLE = 10; // Left fin servo value for going forward (rig
 const int FIN_TURN_ANGLE = 170; // Left fin servo value for turning (right is reversed)
 const int TUBE_ZERO_ANGLE = 0; // Left tube servo default position for going forward (right is reversed)
 const int TURNING_ANGLE = 170; // Angle output for initiating a turn, cutoff for applying valves and fins
-const int MAX_BLOCKS = 6; // Maximum number of blocks sent from pixycam
+const int MAX_BLOCKS = 7; // Maximum number of blocks sent from pixycam
 const bool TURN_TUBES = true; // Whether to use tube servos for steering
 const bool TURN_VALVES = true; // Whether to use valves for steering
 const bool TURN_FINS = true; // Whether to use fins for steering
@@ -86,10 +86,10 @@ RECEIVE_DATA_STRUCTURE rxdata;
 void setup() {
   // Serial transfer initialization
   Serial.begin(9600);
-  Arduino.begin(4800);
+  Arduino.begin(9600);
   ETin.begin(details(rxdata), &Arduino);
 
-//  Serial.println("In setup");
+  Serial.println("In setup");
 
   // Pin initialization
   rightFin.attach(FIN1);
@@ -99,33 +99,22 @@ void setup() {
   pinMode(PUMPM, OUTPUT);
   pinMode(VALVE1M, OUTPUT); // Right
   pinMode(VALVE2, OUTPUT); // Left
-  pinMode(STOP, INPUT);
 
-  // E-Stop initialization
-  digitalWrite(STOP, HIGH);
-  attachInterrupt(digitalPinToInterrupt(STOP), eStop, LOW);
-
-  Serial.println("Beginning system check");
+  Serial.println("About to system check");
   systemCheck();
-  Serial.println("System check complete");
+  Serial.println("System check done");
 }
 
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  delay(50);
+  delay(100);
   
-//  Serial.println("In loop");
   downloadMission();
-//  Serial.println("Mission downloaded");
   readSenseArduino();
-//  Serial.println("Sense Arduino read");
   think();
-//  Serial.println("Had a nice thought");
   act();
-//  Serial.println("Acted on it");
   debug();
-//  Serial.println("Just debugged");
 }
 
 
@@ -139,7 +128,6 @@ void wait(int t){
 
 // Check for new mission over Serial in the format of a string of characters
 void downloadMission() {
-//  Serial.println("In downloadMission");
   int n = Serial.available();
   if(n<1) { // No message available
     return;
@@ -153,7 +141,7 @@ void downloadMission() {
       case '3': mission[i] = RIGHT; break;
       case 'r': mission[i] = RED; break;
       case 'y': mission[i] = YELLOW; break;
-      case 'g': mission[i] = GREEN; break;
+      case 'w': mission[i] = WHITE; break;
       case 'h': mission[i] = HOME; break;
       case 'd': mission[i] = DANCE; break;
       case 'l': mission[i] = LOOP; break;
@@ -168,7 +156,6 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-//  Serial.println("In readSenseArduino");
   distance = -1;
   angle = 0;
   if(ETin.receiveData()){ //recieves data: n, blocks
@@ -177,7 +164,7 @@ void readSenseArduino() {
       eStop();
     }
     for (int i=0; i<MAX_BLOCKS; i++) {
-      if (rxdata.signatures[i]%3==mission[target]-2) { // R,Y,W,H = 1,2,3,4
+      if (rxdata.signatures[i]==mission[target]-2) { // R,Y,W,H = 1,2,3,4
         distance = CAMERA_RATIO*rxdata.widths[i];
         angle = rxdata.positions[i]-159; // 159 = center of screen
       }
@@ -187,7 +174,6 @@ void readSenseArduino() {
 
 //Check all systems
 void systemCheck(){
-//  Serial.println("In system check");
   wait(1000);
   move(0, TURNING_ANGLE);
   wait(1000);
@@ -198,7 +184,6 @@ void systemCheck(){
 
 //eStop function to shut off all motors
 void eStop(){
-  estop = true;
   rightFin.write(0);
   leftFin.write(0);
   leftTube.write(0);
@@ -212,11 +197,18 @@ void eStop(){
 
 // Output current state over Xbee
 void debug() {
-//  Serial.println("In debug");
   Serial.print(">>> Mission: ");
   for (int i=0; i<MAX_MISSION_LENGTH; i++) {
     Serial.print(mission[i]);
   }
+  Serial.print(", Blocks: ");
+  Serial.print(rxdata.signatures[0]);
+  Serial.print(rxdata.signatures[1]);
+  Serial.print(rxdata.signatures[2]);
+  Serial.print(rxdata.signatures[3]);
+  Serial.print(rxdata.signatures[4]);
+  Serial.print(rxdata.signatures[5]);
+  Serial.print(rxdata.signatures[5]);
   Serial.print(", Target: ");
   Serial.print(target);
   Serial.print(", Direction: ");
@@ -230,13 +222,12 @@ void debug() {
   Serial.print(", Temp: ");
   Serial.print(temp);
   Serial.print(", E-Stop: ");
-  Serial.println(estop);
+  Serial.println(rxdata.estop);
 }
 
 
 // THINK TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 void think() {
-//  Serial.println("In think");
   if (mission[target]<=2) { // Manual override
     direction = mission[target];
   } else if (mission[target]==DANCE) { // Dance code
@@ -257,8 +248,7 @@ void think() {
 
 // ACT AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 void act() {
-//  Serial.println("In act");
-  if(estop) {
+  if(rxdata.estop) {
     move(0,0);
     return;
   }
@@ -283,7 +273,6 @@ void act() {
 // Output motor values
 void move(int vel, int ang){
   // Set pump output
-//  Serial.println("In move");
   if(vel>0) {
     digitalWrite(PUMPM, HIGH);
     analogWrite(PUMPE, vel);

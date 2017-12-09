@@ -13,9 +13,12 @@
 #include <SoftwareSerial.h> //need this library to run Software Serial
 
 //libraries included to use PixyCam
-//#include <SPI.h>  
-#include <PixyI2C.h>
-#include <Wire.h>
+#include <SPI.h> 
+#include <Wire.h> 
+//#include <PixyI2C.h>
+#include <Pixy.h>
+
+//#include "PixyUART.h"
 
 
 //library included to use servos
@@ -27,9 +30,9 @@
 
 
 //Constants and Global Variables VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
-PixyI2C pixy; //creates PixyCam object to use
+Pixy pixy; //creates PixyCam object to use
 EasyTransfer ETin, ETout; //creates serial structures to transfer data
-SoftwareSerial Arduino(12, 13);
+//SoftwareSerial Arduino(12, 13);
 
 //flood True if hull flooding
 //temp true if electronics overheating
@@ -38,10 +41,10 @@ boolean flood, temp, estop = false;
 
 const int COLUMNS = 16;
 const int ROWS = 1;
-const int FLOODPIN = 3; 
-const int MAX_BLOCKS = 6;
-const int STOP = 4; // Magnetic sensor pin to determin eStop
-const int TEMP = A0;
+const int FLOODPIN = A3; 
+const int MAX_BLOCKS = 7;
+const int STOP = A0; // Magnetic sensor pin to determin eStop
+const int TEMP = A2;
 
 
 struct SEND_DATA_STRUCTURE{
@@ -59,17 +62,18 @@ SEND_DATA_STRUCTURE txdata;
 
 //SETUP ROBOT CODE (RUN ONCE)SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
-  //Serial.begin(9600);
+  Serial.begin(9600);
   
   pixy.init();
-  Arduino.begin(4800);
+  //Arduino.begin(4800);
 
-  ETout.begin(details(txdata), &Arduino);
+  ETout.begin(details(txdata), &Serial);
 
   //Serial.println("SETUP");
   pinMode(STOP, INPUT);
   pinMode(FLOODPIN, INPUT);
-  
+
+  delay(100);
 
 }
 
@@ -80,16 +84,17 @@ void loop() {
   for (int i=0; i<MAX_BLOCKS; i++) {
     txdata.signatures[i] = 0;
   }
+  //Serial.println(pixy.getBlocks());
+  
   for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
     txdata.widths[i] = pixy.blocks[i].width;
     txdata.positions[i] = pixy.blocks[i].width;
     txdata.signatures[i] = pixy.blocks[i].signature;
   }
-  
   txdata.estop = digitalRead(STOP);
 
   ETout.sendData();
-  delay(50);
+  delay(100);
 
   //checkFlood();
   //checkTemp();
@@ -105,7 +110,8 @@ void checkFlood(){
     flood = true;
     //Serial.println("FLOOD");
   }
-  //Serial.println("Water Good");
+  //else
+    //Serial.println("Water Good");
 }
 
 void checkTemp(){//temp 150F
@@ -116,7 +122,8 @@ void checkTemp(){//temp 150F
     temp = true;
     //Serial.println("FIRE");
   }
-  //Serial.println("Temp Good");
+  //else
+    //Serial.println("Temp Good");
 }
 
 
