@@ -55,9 +55,9 @@ const int VALVE1E = 4; // Valve PLL speed control pin
 const int VALVE1M = 5; // Valve motor plug
 
 // Objects
-Servo rightFin, leftFin, leftTube, rightTube;
-EasyTransfer ETin, ETout; 
+Servo rightFin, leftFin, leftTube, rightTube; 
 SoftwareSerial Arduino(12,13); //communicate with sense Arduino RX TX
+EasyTransfer ETin, ETout;
 
 // State variables
 int direction = NONE; // Computed direction to travel
@@ -73,7 +73,7 @@ struct RECEIVE_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
   float widths[MAX_BLOCKS];
-  int signatures[MAX_BLOCKS];
+  int16_t signatures[MAX_BLOCKS];
   float positions[MAX_BLOCKS];
   boolean estop;
 };
@@ -89,32 +89,48 @@ void setup() {
   Arduino.begin(4800);
   ETin.begin(details(rxdata), &Arduino);
 
-  Serial.println("In setup");
+  //Serial.println("In setup");
 
-  // Pin initialization
-  rightFin.attach(FIN1);
-  leftFin.attach(FIN2);
-  rightTube.attach(TUBE1);
-  leftTube.attach(TUBE2);
-  pinMode(PUMPM, OUTPUT);
-  pinMode(VALVE1M, OUTPUT); // Right
-  pinMode(VALVE2, OUTPUT); // Left
-
-  Serial.println("About to system check");
-  systemCheck();
-  Serial.println("System check done");
+//  // Pin initialization
+//  rightFin.attach(FIN1);
+//  leftFin.attach(FIN2);
+//  rightTube.attach(TUBE1);
+//  leftTube.attach(TUBE2);
+//  pinMode(PUMPM, OUTPUT);
+//  pinMode(VALVE1M, OUTPUT); // Right
+//  pinMode(VALVE2, OUTPUT); // Left
+//
+//  Serial.println("About to system check");
+//  systemCheck();
+//  Serial.println("System check done");
 }
 
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  delay(100);
+  //delay(100);
   
-  downloadMission();
-  readSenseArduino();
-  think();
-  act();
-  debug();
+  if(ETin.receiveData()){
+    Serial.print("Magnet: ");
+    Serial.println(rxdata.estop);
+    Serial.print("Sig: ");
+    Serial.println(rxdata.signatures[0]);
+    Serial.println(rxdata.signatures[1]);
+    Serial.println(rxdata.signatures[2]);
+    Serial.println(rxdata.signatures[3]);
+    Serial.println(rxdata.signatures[4]);
+    Serial.println(rxdata.signatures[5]);
+    Serial.println(rxdata.signatures[6]);
+    Serial.print("Pos: ");
+    Serial.println(rxdata.positions[2]);
+    Serial.print("Width: ");
+    Serial.println(rxdata.widths[2]);
+  }
+  //downloadMission();
+  //readSenseArduino();
+  //think();
+  //act();
+  //debug();
 }
 
 
@@ -156,20 +172,28 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-  distance = -1;
-  angle = 0;
-  if(ETin.receiveData()){ //recieves data: n, blocks
-    wait(10);
-    if(rxdata.estop){
-      eStop();
-    }
-    for (int i=0; i<MAX_BLOCKS; i++) {
-      if (rxdata.signatures[i]%3==mission[target]-2) { // R,Y,W,H = 1,2,3,4
-        distance = CAMERA_RATIO*rxdata.widths[i];
-        angle = rxdata.positions[i]-159; // 159 = center of screen
-      }
-    }
+  Serial.println("HERE I AM");
+  if(ETin.receiveData()){
+    Serial.print("Magnet: ");
+    Serial.println(rxdata.estop);
   }
+  
+//  distance = -1;
+//  angle = 0;
+//  if(ETin.receiveData()){ //recieves data: n, blocks
+//    wait(10);
+//    Serial.println("Mag: ");
+//    Serial.println(rxdata.estop);
+//    if(rxdata.estop){
+//      eStop();
+//    }
+//    for (int i=0; i<MAX_BLOCKS; i++) {
+//      if (rxdata.signatures[i]%3==mission[target]-2) { // R,Y,W,H = 1,2,3,4
+//        distance = CAMERA_RATIO*rxdata.widths[i];
+//        angle = rxdata.positions[i]-159; // 159 = center of screen
+//      }
+//    }
+//  }
 }
 
 //Check all systems
@@ -197,32 +221,32 @@ void eStop(){
 
 // Output current state over Xbee
 void debug() {
-  Serial.print(">>> Mission: ");
-  for (int i=0; i<MAX_MISSION_LENGTH; i++) {
-    Serial.print(mission[i]);
-  }
-  Serial.print(", Blocks: ");
-  Serial.print(rxdata.signatures[0]);
-  Serial.print(rxdata.signatures[1]);
-  Serial.print(rxdata.signatures[2]);
-  Serial.print(rxdata.signatures[3]);
-  Serial.print(rxdata.signatures[4]);
-  Serial.print(rxdata.signatures[5]);
-  Serial.print(rxdata.signatures[5]);
-  Serial.print(", Target: ");
-  Serial.print(target);
-  Serial.print(", Direction: ");
-  Serial.print(direction);
-  Serial.print(", Distance: ");
-  Serial.print(distance);
-  Serial.print(", Angle: ");
-  Serial.print(angle);
-  Serial.print(", Flood: ");
-  Serial.print(flood);
-  Serial.print(", Temp: ");
-  Serial.print(temp);
-  Serial.print(", E-Stop: ");
-  Serial.println(rxdata.estop);
+//  Serial.print(">>> Mission: ");
+//  for (int i=0; i<MAX_MISSION_LENGTH; i++) {
+//    Serial.print(mission[i]);
+//  }
+//  Serial.print(", Blocks: ");
+//  Serial.print(rxdata.signatures[0]);
+//  Serial.print(rxdata.signatures[1]);
+//  Serial.print(rxdata.signatures[2]);
+//  Serial.print(rxdata.signatures[3]);
+//  Serial.print(rxdata.signatures[4]);
+//  Serial.print(rxdata.signatures[5]);
+//  Serial.print(rxdata.signatures[5]);
+//  Serial.print(", Target: ");
+//  Serial.print(target);
+//  Serial.print(", Direction: ");
+//  Serial.print(direction);
+//  Serial.print(", Distance: ");
+//  Serial.print(distance);
+//  Serial.print(", Angle: ");
+//  Serial.print(angle);
+//  Serial.print(", Flood: ");
+//  Serial.print(flood);
+//  Serial.print(", Temp: ");
+//  Serial.print(temp);
+//  Serial.print(", E-Stop: ");
+//  Serial.println(rxdata.estop);
 }
 
 

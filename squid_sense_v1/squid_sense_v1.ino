@@ -51,7 +51,7 @@ struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
   //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
   float widths[MAX_BLOCKS];
-  int signatures[MAX_BLOCKS];
+  int16_t signatures[MAX_BLOCKS];
   float positions[MAX_BLOCKS];
   boolean estop;
 };
@@ -84,11 +84,11 @@ void loop() {
   for (int i=0; i<MAX_BLOCKS; i++) {
     txdata.signatures[i] = 0;
   }
-  //Serial.println(pixy.getBlocks());
-  
+//  //Serial.println(pixy.getBlocks());
+//  
   for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
     txdata.widths[i] = pixy.blocks[i].width;
-    txdata.positions[i] = pixy.blocks[i].width;
+    txdata.positions[i] = pixy.blocks[i].width; //change this
     txdata.signatures[i] = pixy.blocks[i].signature;
   }
   txdata.estop = digitalRead(STOP);
