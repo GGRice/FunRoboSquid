@@ -5,7 +5,7 @@
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
  *          then back home 
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
- * 11/14/2017
+ * 12/9/2017
  * Version 1
  */
 
@@ -26,7 +26,7 @@
 // CONSTANTS AND GLOBAL VARIABLES VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 // Constants
 enum {RIGHT=-1, NONE=0, LEFT=1, STRAIGHT=2}; // Directions
-enum {RED=3, YELLOW=4, WHITE=5, HOME=6, DANCE=7, LOOP=8}; // Targets
+enum {GREEN=3, YELLOW=4, RED=5, HOME=6, DANCE=7, LOOP=8}; // Targets
 const int APPROACH_DIST = 10; // Distance from target to start turning (inches)
 const float K_P = 1.0; // Proportional constant for feedback control
 const int FORWARD_VELOCITY = 255; // Pump output for normal swimming
@@ -132,7 +132,7 @@ void downloadMission() {
   if(n<1) { // No message available
     return;
   }
-  for (int i=0;i<min(n-1,1); i++) {
+  for (int i=0;i<n; i++) {
     // Map input characters to desired targets
     switch(Serial.read()) {
       case '>': return; // Debug message
@@ -141,7 +141,7 @@ void downloadMission() {
       case '3': mission[i] = RIGHT; break;
       case 'r': mission[i] = RED; break;
       case 'y': mission[i] = YELLOW; break;
-      case 'w': mission[i] = WHITE; break;
+      case 'g': mission[i] = GREEN; break;
       case 'h': mission[i] = HOME; break;
       case 'd': mission[i] = DANCE; break;
       case 'l': mission[i] = LOOP; break;
@@ -164,7 +164,7 @@ void readSenseArduino() {
       eStop();
     }
     for (int i=0; i<MAX_BLOCKS; i++) {
-      if (rxdata.signatures[i]==mission[target]-2) { // R,Y,W,H = 1,2,3,4
+      if (rxdata.signatures[i]%3==mission[target]-2) { // R,Y,W,H = 1,2,3,4
         distance = CAMERA_RATIO*rxdata.widths[i];
         angle = rxdata.positions[i]-159; // 159 = center of screen
       }
