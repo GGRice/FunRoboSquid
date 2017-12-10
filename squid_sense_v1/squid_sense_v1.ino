@@ -62,7 +62,7 @@ SEND_DATA_STRUCTURE txdata;
 
 //SETUP ROBOT CODE (RUN ONCE)SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(4800);
   
   pixy.init();
   //Arduino.begin(4800);
@@ -92,6 +92,7 @@ void loop() {
     txdata.signatures[i] = pixy.blocks[i].signature;
   }
   txdata.estop = digitalRead(STOP);
+  //Serial.println(txdata.estop);
 
   ETout.sendData();
   delay(100);

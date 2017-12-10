@@ -3,7 +3,7 @@
  * Think/Act
  * SquidBot
  * Mission: Drive straight to buoy, turn in circle, drive to next buoy, etc.,
- *          then back home
+ *          then back home 
  * Team Squid: Aubrey, Diego, Gretchen, Jon, MJ, Paul  
  * 11/14/2017
  * Version 1
@@ -57,7 +57,7 @@ const int VALVE1M = 5; // Valve motor plug
 // Objects
 Servo rightFin, leftFin, leftTube, rightTube;
 EasyTransfer ETin, ETout; 
-SoftwareSerial Arduino(12,13); //communicate with sense Arduino
+SoftwareSerial Arduino(12,13); //communicate with sense Arduino RX TX
 
 // State variables
 int direction = NONE; // Computed direction to travel
@@ -86,7 +86,7 @@ RECEIVE_DATA_STRUCTURE rxdata;
 void setup() {
   // Serial transfer initialization
   Serial.begin(9600);
-  Arduino.begin(9600);
+  Arduino.begin(4800);
   ETin.begin(details(rxdata), &Arduino);
 
   Serial.println("In setup");
