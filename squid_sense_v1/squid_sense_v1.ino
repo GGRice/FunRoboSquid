@@ -79,20 +79,15 @@ void setup() {
 
 //ROBOT CONTROL LOOP (RUNS UNTIL STOP)LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  //Serial.println("MAIN LOOP");
-  //Serial.println(txdata.test);
   for (int i=0; i<MAX_BLOCKS; i++) {
     txdata.signatures[i] = 0;
   }
-//  //Serial.println(pixy.getBlocks());
-//  
   for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
     txdata.widths[i] = pixy.blocks[i].width;
-    txdata.positions[i] = pixy.blocks[i].width; //change this
+    txdata.positions[i] = pixy.blocks[i].x;
     txdata.signatures[i] = pixy.blocks[i].signature;
   }
   txdata.estop = digitalRead(STOP);
-  //Serial.println(txdata.estop);
 
   ETout.sendData();
   delay(100);
