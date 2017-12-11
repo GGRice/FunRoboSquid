@@ -122,9 +122,9 @@ void loop() {
     Serial.println(rxdata.signatures[5]);
     Serial.println(rxdata.signatures[6]);
     Serial.print("Pos: ");
-    Serial.println(rxdata.positions[2]);
+    Serial.println(rxdata.positions[0]);
     Serial.print("Width: ");
-    Serial.println(rxdata.widths[2]);
+    Serial.println(rxdata.widths[0]);
   }
   //downloadMission();
   //readSenseArduino();
