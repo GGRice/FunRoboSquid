@@ -18,7 +18,8 @@
 #include <Pixy.h>
 
 // Library included to use servos
-#include<Servo.h>
+//#include<Servo.h>
+#include<ServoTimer2.h>
 
 // Libraries included to use motor and motion shield
 #include <Wire.h>
@@ -33,11 +34,11 @@ const int FORWARD_VELOCITY = 255; // Pump output for normal swimming
 const int TURNING_VELOCITY = 255; // Pump output for turning
 const int MAX_MISSION_LENGTH = 10; // Maximum number of targets in a mission
 const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy (inches/pixel)
-const int SERVO_MAX_POSITION = 170; // Maximum angle that servos can output
-const int FIN_FORWARD_ANGLE = 85; // Left fin servo value for going forward (right is reversed)
-const int FIN_TURN_ANGLE = 120; // Left fin servo value for turning (right is reversed)
+const int SERVO_MAX_POSITION = 2000;//170; // Maximum angle that servos can output
+const int FIN_FORWARD_ANGLE = 1500; //85; // Left fin servo value for going forward (right is reversed)
+const int FIN_TURN_ANGLE = 2000; //120; // Left fin servo value for turning (right is reversed)
 const int TUBE_ZERO_ANGLE = 0; // Left tube servo default position for going forward (right is reversed)
-const int TURNING_ANGLE = 170; // Angle output for initiating a turn, cutoff for applying valves and fins
+const int TURNING_ANGLE = 2000; //170; // Angle output for initiating a turn, cutoff for applying valves and fins
 const int MAX_BLOCKS = 7; // Maximum number of blocks sent from pixycam
 const bool TURN_TUBES = true; // Whether to use tube servos for steering
 const bool TURN_VALVES = true; // Whether to use valves for steering
@@ -55,7 +56,7 @@ const int VALVE1E = 4; // Valve PLL speed control pin
 const int VALVE1M = 5; // Valve motor plug
 
 // Objects
-Servo rightFin, leftFin, leftTube, rightTube; 
+ServoTimer2 rightFin, leftFin, leftTube, rightTube; 
 SoftwareSerial Arduino(12,13); //communicate with sense Arduino RX TX
 EasyTransfer ETin, ETout;
 
