@@ -34,8 +34,8 @@ const int TURNING_VELOCITY = 255; // Pump output for turning
 const int MAX_MISSION_LENGTH = 10; // Maximum number of targets in a mission
 const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy (inches/pixel)
 const int SERVO_MAX_POSITION = 170; // Maximum angle that servos can output
-const int FIN_FORWARD_ANGLE = 10; // Left fin servo value for going forward (right is reversed)
-const int FIN_TURN_ANGLE = 170; // Left fin servo value for turning (right is reversed)
+const int FIN_FORWARD_ANGLE = 85; // Left fin servo value for going forward (right is reversed)
+const int FIN_TURN_ANGLE = 120; // Left fin servo value for turning (right is reversed)
 const int TUBE_ZERO_ANGLE = 0; // Left tube servo default position for going forward (right is reversed)
 const int TURNING_ANGLE = 170; // Angle output for initiating a turn, cutoff for applying valves and fins
 const int MAX_BLOCKS = 7; // Maximum number of blocks sent from pixycam
@@ -44,10 +44,10 @@ const bool TURN_VALVES = true; // Whether to use valves for steering
 const bool TURN_FINS = true; // Whether to use fins for steering
 
 // Pins
-const int FIN1 = 3; // Right fin
-const int FIN2 = 9; // Left fin
-const int TUBE1 = 10; // Right tube pull
-const int TUBE2 = 11; // Left tube pull
+const int FIN1 = 10; // Right fin
+const int FIN2 = 11; // Left fin
+const int TUBE1 = 9; // Right tube pull
+const int TUBE2 = 3; // Left tube pull
 const int VALVE2 = 2; // Left valve through relay
 const int PUMPE = 7; // Pump PLL speed control pin
 const int PUMPM = 6; // Pump motor plug
@@ -67,6 +67,7 @@ int distance = 0; // Distance from target in inches
 int angle = 0; // Angle towards target in degrees CCW
 long previousMillis = 0; // Previous loop time in milliseconds
 boolean flood, temp = false; // E-Stop activated, hull flooding, electronics overheating
+int loops = 0;
 
 // Serial send/recieve structures
 struct RECEIVE_DATA_STRUCTURE{
@@ -92,23 +93,24 @@ void setup() {
   //Serial.println("In setup");
 
 //  // Pin initialization
-//  rightFin.attach(FIN1);
-//  leftFin.attach(FIN2);
-//  rightTube.attach(TUBE1);
-//  leftTube.attach(TUBE2);
-//  pinMode(PUMPM, OUTPUT);
-//  pinMode(VALVE1M, OUTPUT); // Right
-//  pinMode(VALVE2, OUTPUT); // Left
-//
-//  Serial.println("About to system check");
-//  systemCheck();
-//  Serial.println("System check done");
+  rightFin.attach(FIN1);
+  leftFin.attach(FIN2);
+  rightTube.attach(TUBE1);
+  leftTube.attach(TUBE2);
+  pinMode(PUMPM, OUTPUT);
+  pinMode(VALVE1M, OUTPUT); // Right
+  pinMode(VALVE2, OUTPUT); // Left
+
+  Serial.println("About to system check");
+  systemCheck();
+  Serial.println("System check done");
 }
 
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
   delay(5);
+  loops++;
   
   if(0&&ETin.receiveData()){
     Serial.print("Magnet: ");
@@ -130,7 +132,7 @@ void loop() {
   readSenseArduino();
   think();
   act();
-  debug();
+  if(loops%10==0) debug();
 }
 
 
@@ -172,15 +174,15 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-  distance = -1;
-  angle = 0;
   if(ETin.receiveData()){ //recieves data: n, blocks
-    wait(20);
+    delay(20);
+    distance = -1;
+    angle = 0;
     if(rxdata.estop){
       eStop();
     }
     for (int i=0; i<MAX_BLOCKS; i++) {
-      if (rxdata.signatures[i]%3==mission[target]-2) { // R,Y,W,H = 1,2,3,4
+      if (rxdata.signatures[i]%3==mission[target]-2) { // G,Y,R,H = 1,2,3,4
         distance = CAMERA_RATIO*rxdata.widths[i];
         angle = rxdata.positions[i]-159; // 159 = center of screen
       }
@@ -250,7 +252,7 @@ void think() {
     direction = DANCE;
   } else if (distance<0) { // Target not visible
     direction = LEFT;
-  } else if (distance<APPROACH_DIST) { // Reached target
+  } else if (distance>APPROACH_DIST) { // Reached target
     target++;
     if(mission[target]==LOOP) { // Restart mission
       target=0;
