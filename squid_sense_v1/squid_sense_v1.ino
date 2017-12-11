@@ -43,9 +43,9 @@ const int COLUMNS = 16;
 const int ROWS = 1;
 const int FLOODPIN = A3; 
 const int MAX_BLOCKS = 7;
-const int STOP = A0; // Magnetic sensor pin to determin eStop
+const int STOP = A0; // Magnetic sensor pin to determine eStop
 const int TEMP = A2;
-
+int filter = 0;
 
 struct SEND_DATA_STRUCTURE{
   //put your variable definitions here for the data you want to receive
@@ -79,18 +79,27 @@ void setup() {
 
 //ROBOT CONTROL LOOP (RUNS UNTIL STOP)LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
+  int n = pixy.getBlocks();
   for (int i=0; i<MAX_BLOCKS; i++) {
     txdata.signatures[i] = 0;
   }
-  for (int i=0; i<min(pixy.getBlocks(),MAX_BLOCKS); i++) {
+  for (int i=0; i<min(n,MAX_BLOCKS); i++) {
     txdata.widths[i] = pixy.blocks[i].width;
     txdata.positions[i] = pixy.blocks[i].x;
     txdata.signatures[i] = pixy.blocks[i].signature;
   }
+  
   txdata.estop = digitalRead(STOP);
 
   ETout.sendData();
-  delay(100);
+//  Serial.print(txdata.signatures[0]);
+//  Serial.print(txdata.signatures[1]);
+//  Serial.print(txdata.signatures[2]);
+//  Serial.print(txdata.signatures[3]);
+//  Serial.print(txdata.signatures[4]);
+//  Serial.print(txdata.signatures[5]);
+//  Serial.println(txdata.signatures[6]);
+  delay(20);
 
   //checkFlood();
   //checkTemp();
