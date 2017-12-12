@@ -9,8 +9,8 @@
  * Version 1
  */
 //library for serial communication
-#include <EasyTransfer.h>
-#include <SoftwareSerial.h> //need this library to run Software Serial
+//#include <EasyTransfer.h>
+//#include <SoftwareSerial.h> //need this library to run Software Serial
 
 //libraries included to use PixyCam
 #include <SPI.h> 
@@ -31,7 +31,9 @@
 
 //Constants and Global Variables VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 Pixy pixy; //creates PixyCam object to use
-EasyTransfer ETin, ETout; //creates serial structures to transfer data
+//EasyTransfer ETin, ETout; //creates serial structures to transfer data
+
+int ADDRESS=8; 
 
 //flood True if hull flooding
 //temp true if electronics overheating
@@ -46,27 +48,32 @@ const int STOP = A0; // Magnetic sensor pin to determine eStop
 const int TEMP = A2;
 int filter = 0;
 
-struct SEND_DATA_STRUCTURE{
-  //put your variable definitions here for the data you want to receive
-  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  float widths[MAX_BLOCKS];
-  int16_t signatures[MAX_BLOCKS];
-  float positions[MAX_BLOCKS];
-  boolean estop;
-};
+float widths[MAX_BLOCKS];
+int16_t signatures[MAX_BLOCKS];
+float positions[MAX_BLOCKS];
 
-//give a name to the group of data
-SEND_DATA_STRUCTURE txdata;
+//struct SEND_DATA_STRUCTURE{
+//  //put your variable definitions here for the data you want to receive
+//  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
+//  float widths[MAX_BLOCKS];
+//  int16_t signatures[MAX_BLOCKS];
+//  float positions[MAX_BLOCKS];
+//  boolean estop;
+//};
+//
+////give a name to the group of data
+//SEND_DATA_STRUCTURE txdata;
 
 
 //SETUP ROBOT CODE (RUN ONCE)SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
-  Serial.begin(4800);
+  Wire.begin(); 
+  Serial.begin(9600);
   
   pixy.init();
   //Arduino.begin(4800);
 
-  ETout.begin(details(txdata), &Serial);
+  //ETout.begin(details(txdata), &Serial);
 
   //Serial.println("SETUP");
   pinMode(STOP, INPUT); 
@@ -80,17 +87,19 @@ void setup() {
 void loop() {
   int n = pixy.getBlocks();
   for (int i=0; i<MAX_BLOCKS; i++) {
-    txdata.signatures[i] = 0;
+    signatures[i] = 0;
   }
   for (int i=0; i<min(n,MAX_BLOCKS); i++) {
-    txdata.widths[i] = pixy.blocks[i].width;
-    txdata.positions[i] = pixy.blocks[i].x;
-    txdata.signatures[i] = pixy.blocks[i].signature;
+    widths[i] = pixy.blocks[i].width;
+    positions[i] = pixy.blocks[i].x;
+    signatures[i] = pixy.blocks[i].signature;
   }
   
-  txdata.estop = digitalRead(STOP);
+  estop = digitalRead(STOP);
 
-  ETout.sendData();
+  i2cTransfer(widths, signatures, positions, estop);
+
+  //ETout.sendData();
 //  Serial.print(txdata.signatures[0]);
 //  Serial.print(txdata.signatures[1]);
 //  Serial.print(txdata.signatures[2]);
@@ -103,6 +112,14 @@ void loop() {
   //checkFlood();
   //checkTemp();
   
+}
+void i2cTransfer(float widths[MAX_BLOCKS], int16_t signatures[MAX_BLOCKS], float positions[MAX_BLOCKS], boolean estop){
+  Wire.beginTransmission(ADDRESS);
+  Wire.write(widths);
+  Wire.write(signatures);
+  Wire.write(positions);
+  Wire.write(estop);
+  Wire.endTransmission;
 }
 
 //CONTROL FUNCTIONS CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC

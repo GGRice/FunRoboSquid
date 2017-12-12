@@ -10,9 +10,9 @@
  */
 
 // Library for Serial Transfer
-#include <EasyTransfer.h>
+//#include <EasyTransfer.h>
 //#include <SoftwareSerial.h>
-#include <AltSoftSerial.h>
+//#include <AltSoftSerial.h>
 
 // Libraries included to use PixyCam
 #include <SPI.h>
@@ -24,6 +24,9 @@
 
 // Libraries included to use motor and motion shield
 #include <Wire.h>
+
+Pixy pixy; //creates PixyCam object to use
+
 
 // CONSTANTS AND GLOBAL VARIABLES VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 // Constants
@@ -58,8 +61,8 @@ const int VALVE1M = 6; // Valve motor plug
 
 // Objects
 ServoTimer2 rightFin, leftFin, leftTube, rightTube; 
-AltSoftSerial Arduino(12,13); //communicate with sense Arduino RX TX
-EasyTransfer ETin, ETout;
+//AltSoftSerial Arduino(12,13); //communicate with sense Arduino RX TX
+//EasyTransfer ETin, ETout;
 
 // State variables
 int direction = NONE; // Computed direction to travel
@@ -71,26 +74,32 @@ long previousMillis = 0; // Previous loop time in milliseconds
 boolean flood, temp = false; // E-Stop activated, hull flooding, electronics overheating
 int loops = 0;
 
-// Serial send/recieve structures
-struct RECEIVE_DATA_STRUCTURE{
-  //put your variable definitions here for the data you want to receive
-  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  float widths[MAX_BLOCKS];
-  int16_t signatures[MAX_BLOCKS];
-  float positions[MAX_BLOCKS];
-  boolean estop;
-};
+float widths[MAX_BLOCKS];
+int16_t signatures[MAX_BLOCKS];
+float positions[MAX_BLOCKS];
+boolean estop = false;
 
-
-// Give a name to the group of data
-RECEIVE_DATA_STRUCTURE rxdata;
+//
+//// Serial send/recieve structures
+//struct RECEIVE_DATA_STRUCTURE{
+//  //put your variable definitions here for the data you want to receive
+//  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
+//  float widths[MAX_BLOCKS];
+//  int16_t signatures[MAX_BLOCKS];
+//  float positions[MAX_BLOCKS];
+//  boolean estop;
+//};
+//
+//
+//// Give a name to the group of data
+//RECEIVE_DATA_STRUCTURE rxdata;
 
 // SETUP ROBOT CODE (RUN ONCE) SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 void setup() {
   // Serial transfer initialization
   Serial.begin(9600);
-  Arduino.begin(4800);
-  ETin.begin(details(rxdata), &Arduino);
+  //Arduino.begin(4800);
+  //ETin.begin(details(rxdata), &Arduino);
 
   //Serial.println("In setup");
 
@@ -114,22 +123,22 @@ void loop() {
   delay(5);
   loops++;
 
-  if(0&&ETin.receiveData()){
-    Serial.print("Magnet: ");
-    Serial.println(rxdata.estop);
-    Serial.print("Sig: ");
-    Serial.println(rxdata.signatures[0]);
-    Serial.println(rxdata.signatures[1]);
-    Serial.println(rxdata.signatures[2]);
-    Serial.println(rxdata.signatures[3]);
-    Serial.println(rxdata.signatures[4]);
-    Serial.println(rxdata.signatures[5]);
-    Serial.println(rxdata.signatures[6]);
-    Serial.print("Pos: ");
-    Serial.println(rxdata.positions[0]);
-    Serial.print("Width: ");
-    Serial.println(rxdata.widths[0]);
-  }
+//  if(0&&ETin.receiveData()){
+//    Serial.print("Magnet: ");
+//    Serial.println(rxdata.estop);
+//    Serial.print("Sig: ");
+//    Serial.println(rxdata.signatures[0]);
+//    Serial.println(rxdata.signatures[1]);
+//    Serial.println(rxdata.signatures[2]);
+//    Serial.println(rxdata.signatures[3]);
+//    Serial.println(rxdata.signatures[4]);
+//    Serial.println(rxdata.signatures[5]);
+//    Serial.println(rxdata.signatures[6]);
+//    Serial.print("Pos: ");
+//    Serial.println(rxdata.positions[0]);
+//    Serial.print("Width: ");
+//    Serial.println(rxdata.widths[0]);
+//  }
 
   downloadMission();
   readSenseArduino();
@@ -177,20 +186,31 @@ void downloadMission() {
 
 // Compute distance and direction from sense Arduino input
 void readSenseArduino() {
-  if(ETin.receiveData()){ //recieves data: n, blocks
-    delay(20);
-    distance = -1;
-    angle = 0;
-    if(rxdata.estop){
-      eStop();
-    }
-    for (int i=0; i<MAX_BLOCKS; i++) {
-      if (rxdata.signatures[i]%3==mission[target]-2) { // G,Y,R,H = 1,2,3,4
-        distance = CAMERA_RATIO*rxdata.widths[i];
-        angle = rxdata.positions[i]-159; // 159 = center of screen
+  int n = pixy.getBlocks();
+  for (int i=0; i<MAX_BLOCKS; i++) {
+    signatures[i] = 0;
+  }
+  for (int i=0; i<min(n,MAX_BLOCKS); i++) {
+    widths[i] = pixy.blocks[i].width;
+    positions[i] = pixy.blocks[i].x;
+    signatures[i] = pixy.blocks[i].signature;
+  }
+  for (int i=0; i<MAX_BLOCKS; i++) {
+      if (signatures[i]%3==mission[target]-2) { // G,Y,R,H = 1,2,3,4
+        distance = CAMERA_RATIO*widths[i];
+        angle = positions[i]-159; // 159 = center of screen
       }
     }
-  }
+  
+//  if(ETin.receiveData()){ //recieves data: n, blocks
+//    delay(20);
+//    distance = -1;
+//    angle = 0;
+//    if(rxdata.estop){
+//      eStop();
+//    }
+//    
+//  }
 }
 
 //Check all systems
@@ -223,13 +243,13 @@ void debug() {
     Serial.print(mission[i]);
   }
   Serial.print(", Blocks: ");
-  Serial.print(rxdata.signatures[0]);
-  Serial.print(rxdata.signatures[1]);
-  Serial.print(rxdata.signatures[2]);
-  Serial.print(rxdata.signatures[3]);
-  Serial.print(rxdata.signatures[4]);
-  Serial.print(rxdata.signatures[5]);
-  Serial.print(rxdata.signatures[6]);
+  Serial.print(signatures[0]);
+  Serial.print(signatures[1]);
+  Serial.print(signatures[2]);
+  Serial.print(signatures[3]);
+  Serial.print(signatures[4]);
+  Serial.print(signatures[5]);
+  Serial.print(signatures[6]);
   Serial.print(", Target: ");
   Serial.print(target);
   Serial.print(", Direction: ");
@@ -243,7 +263,7 @@ void debug() {
   Serial.print(", Temp: ");
   Serial.print(temp);
   Serial.print(", E-Stop: ");
-  Serial.println(rxdata.estop);
+  Serial.println(estop);
 }
 
 
@@ -269,7 +289,7 @@ void think() {
 
 // ACT AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 void act() {
-  if(rxdata.estop) {
+  if(estop) {
     move(0,0);
     return;
   }
