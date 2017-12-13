@@ -32,15 +32,16 @@ Pixy pixy; //creates PixyCam object to use
 // Constants
 enum {RIGHT=-1, NONE=0, LEFT=1, STRAIGHT=2}; // Directions
 enum {GREEN=3, YELLOW=4, RED=5, HOME=6, DANCE=7, LOOP=8}; // Targets
-const int APPROACH_DIST = 10; // Distance from target to start turning (inches)
+const int APPROACH_DIST = 100; // Distance from target to start turning (inches)
 const float K_P = 1.0; // Proportional constant for feedback control
 const int FORWARD_VELOCITY = 255; // Pump output for normal swimming
 const int TURNING_VELOCITY = 255; // Pump output for turning
 const int MAX_MISSION_LENGTH = 10; // Maximum number of targets in a mission
 const int CAMERA_RATIO = 1; // Distance from buoy divided by pixel width of buoy (inches/pixel)
+const int SERVO_MIN_POSITION = 1000;//0; // Minimum angle that servos can output
 const int SERVO_MAX_POSITION = 2000;//170; // Maximum angle that servos can output
-const int FIN_FORWARD_ANGLE = 1500; //85; // Left fin servo value for going forward (right is reversed)
-const int FIN_TURN_ANGLE = 2000; //120; // Left fin servo value for turning (right is reversed)
+const int FIN_FORWARD_ANGLE = 500; //85; // Left fin servo value for going forward (right is reversed)
+const int FIN_TURN_ANGLE = 100; //120; // Left fin servo value for turning (right is reversed)
 const int TUBE_ZERO_ANGLE = 1500; // Left tube servo default position for going forward (right is reversed)
 const int TURNING_ANGLE = 2000; //170; // Angle output for initiating a turn, cutoff for applying valves and fins
 const int MAX_BLOCKS = 7; // Maximum number of blocks sent from pixycam
@@ -50,9 +51,9 @@ const bool TURN_FINS = true; // Whether to use fins for steering
 
 // Pins
 const int FIN1 = 10; // Right fin
-const int FIN2 = 11; // Left fin
+const int FIN2 = 3; // Left fin
 const int TUBE1 = 9; // Right tube pull
-const int TUBE2 = 3; // Left tube pull
+const int TUBE2 = 5; // Left tube pull
 const int VALVE2 = 2; // Left valve through relay
 const int PUMPE = 4; // Pump PLL speed control pin
 const int PUMPM = 5; // Pump motor plug
@@ -98,16 +99,17 @@ boolean estop = false;
 void setup() {
   // Serial transfer initialization
   Serial.begin(9600);
+  pixy.init();
   //Arduino.begin(4800);
   //ETin.begin(details(rxdata), &Arduino);
 
   //Serial.println("In setup");
 
   // Pin initialization
-  rightFin.attach(FIN1);
-  leftFin.attach(FIN2);
   rightTube.attach(TUBE1);
   leftTube.attach(TUBE2);
+  leftFin.attach(FIN2);
+  rightFin.attach(FIN1);
   pinMode(PUMPM, OUTPUT);
   pinMode(VALVE1M, OUTPUT); // Right
   pinMode(VALVE2, OUTPUT); // Left
@@ -120,7 +122,7 @@ void setup() {
 
 // ROBOT CONTROL LOOP (RUNS UNTIL STOP) LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  delay(5);
+  delay(20);
   loops++;
 
 //  if(0&&ETin.receiveData()){
@@ -195,12 +197,14 @@ void readSenseArduino() {
     positions[i] = pixy.blocks[i].x;
     signatures[i] = pixy.blocks[i].signature;
   }
+  distance = -1;
+  angle = 0;
   for (int i=0; i<MAX_BLOCKS; i++) {
-      if (signatures[i]%3==mission[target]-2) { // G,Y,R,H = 1,2,3,4
-        distance = CAMERA_RATIO*widths[i];
-        angle = positions[i]-159; // 159 = center of screen
-      }
+    if (signatures[i]%3==mission[target]-2) { // G,Y,R,H = 1,2,3,4
+      distance = CAMERA_RATIO*widths[i];
+      angle = positions[i]-159; // 159 = center of screen
     }
+  }
   
 //  if(ETin.receiveData()){ //recieves data: n, blocks
 //    delay(20);
@@ -208,9 +212,9 @@ void readSenseArduino() {
 //    angle = 0;
 //    if(rxdata.estop){
 //      eStop();
-//    }
-//    
 //  }
+//    
+//}
 }
 
 //Check all systems
@@ -225,10 +229,10 @@ void systemCheck(){
 
 //eStop function to shut off all motors
 void eStop(){
-  rightFin.write(0);
-  leftFin.write(0);
-  leftTube.write(0);
-  rightTube.write(0);
+//  rightFin.write(0);
+//  leftFin.write(0);
+//  leftTube.write(0);
+//  rightTube.write(0);
   digitalWrite(VALVE2, LOW);
   digitalWrite(PUMPM, LOW);
   analogWrite(PUMPE, 0);
@@ -325,22 +329,22 @@ void move(int vel, int ang){
   if(TURN_TUBES) {
     int leftTubeAngle = min(max(TUBE_ZERO_ANGLE+ang, TUBE_ZERO_ANGLE), TUBE_ZERO_ANGLE+TURNING_ANGLE);
     int rightTubeAngle = min(max(TUBE_ZERO_ANGLE-ang, TUBE_ZERO_ANGLE), TUBE_ZERO_ANGLE+TURNING_ANGLE);
-    leftTube.write(leftTubeAngle);
+    leftTube.write(SERVO_MIN_POSITION + leftTubeAngle);
     rightTube.write(SERVO_MAX_POSITION-rightTubeAngle);
   } else {
-    leftTube.write(TUBE_ZERO_ANGLE);
+    leftTube.write(SERVO_MIN_POSITION + TUBE_ZERO_ANGLE);
     rightTube.write(SERVO_MAX_POSITION-TUBE_ZERO_ANGLE);
   }
   // Set fin angles
   if(TURN_FINS && ang>=TURNING_ANGLE) { // Left
-    leftFin.write(FIN_TURN_ANGLE);
-    rightFin.write(FIN_FORWARD_ANGLE);
+    leftFin.write(SERVO_MIN_POSITION + FIN_TURN_ANGLE);
+    rightFin.write(SERVO_MAX_POSITION - FIN_FORWARD_ANGLE);
   } else if(TURN_FINS && ang<=-TURNING_ANGLE) { // Right
-    leftFin.write(FIN_FORWARD_ANGLE);
-    rightFin.write(FIN_TURN_ANGLE);
+    leftFin.write(SERVO_MIN_POSITION + FIN_FORWARD_ANGLE);
+    rightFin.write(SERVO_MAX_POSITION - FIN_TURN_ANGLE);
   } else { // Straight
-    leftFin.write(FIN_FORWARD_ANGLE);
-    rightFin.write(FIN_FORWARD_ANGLE);
+    leftFin.write(SERVO_MIN_POSITION + FIN_FORWARD_ANGLE);
+    rightFin.write(SERVO_MAX_POSITION - FIN_FORWARD_ANGLE);
   }
   // Set valve states
   if(TURN_VALVES && ang>=TURNING_ANGLE) { // Left
