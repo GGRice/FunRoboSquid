@@ -44,6 +44,7 @@ const int FLOODPIN = A3;
 const int MAX_BLOCKS = 7;
 const int STOP = A0; // Magnetic sensor pin to determine eStop
 const int TEMP = A2;
+const int RELAY = 5;
 int filter = 0;
 
 //struct SEND_DATA_STRUCTURE{
@@ -71,6 +72,7 @@ void setup() {
   //Serial.println("SETUP");
   pinMode(STOP, INPUT); 
   pinMode(FLOODPIN, INPUT);
+  pinMode(RELAY, OUTPUT);
 
   delay(100);
 
@@ -78,7 +80,6 @@ void setup() {
 
 //ROBOT CONTROL LOOP (RUNS UNTIL STOP)LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 void loop() {
-  estop = digitalRead(STOP);
 
   //ETout.sendData();
 //  Serial.print(txdata.signatures[0]);
@@ -122,7 +123,13 @@ void checkTemp(){//temp 150F
 
 
 
-
+void eStop(){
+  estop = digitalRead(STOP);
+    
+  if(eStop){
+    digitalWrite(RELAY, HIGH);
+  }
+}
 
 
 

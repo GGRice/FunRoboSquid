@@ -142,6 +142,9 @@ void loop() {
 //    Serial.println(rxdata.widths[0]);
 //  }
 
+  digitalWrite(PUMPM, HIGH);
+  analogWrite(PUMPE, 255);
+
   downloadMission();
   readSenseArduino();
   think();
@@ -200,7 +203,7 @@ void readSenseArduino() {
   distance = -1;
   angle = 0;
   for (int i=0; i<MAX_BLOCKS; i++) {
-    if (signatures[i]%3==mission[target]-2) { // G,Y,R,H = 1,2,3,4
+    if (signatures[i]==mission[target]-2) { // G,Y,R,H = 1,2,3,4
       distance = CAMERA_RATIO*widths[i];
       angle = positions[i]-159; // 159 = center of screen
     }
@@ -318,13 +321,20 @@ void act() {
 // Output motor values
 void move(int vel, int ang){
   // Set pump output
-  if(vel>0) {
-    digitalWrite(PUMPM, HIGH);
-    analogWrite(PUMPE, vel);
-  } else {
-    digitalWrite(PUMPM, LOW);
-    analogWrite(PUMPE, 0);
-  }
+//  if(vel>0) {
+//    //Serial.print("vel when pump on: ");
+//    //Serial.println(vel);
+//    digitalWrite(PUMPM, HIGH);
+//    analogWrite(PUMPE, vel);
+//  } else {
+//    //Serial.print("vel when pump off: ");
+//    //Serial.println(vel);
+//    digitalWrite(PUMPM, LOW);
+//    analogWrite(PUMPE, 0);
+//  }
+
+  digitalWrite(PUMPM, HIGH);
+  analogWrite(PUMPE, 255);
   // Set tube angles
   if(TURN_TUBES) {
     int leftTubeAngle = min(max(TUBE_ZERO_ANGLE+ang, TUBE_ZERO_ANGLE), TUBE_ZERO_ANGLE+TURNING_ANGLE);
@@ -337,27 +347,32 @@ void move(int vel, int ang){
   }
   // Set fin angles
   if(TURN_FINS && ang>=TURNING_ANGLE) { // Left
-    leftFin.write(SERVO_MIN_POSITION + FIN_TURN_ANGLE);
-    rightFin.write(SERVO_MAX_POSITION - FIN_FORWARD_ANGLE);
+    //Serial.println("turn fins left");
+    leftFin.write(SERVO_MIN_POSITION + FIN_TURN_ANGLE-200);
+    rightFin.write(SERVO_MAX_POSITION - FIN_FORWARD_ANGLE-100);
   } else if(TURN_FINS && ang<=-TURNING_ANGLE) { // Right
-    leftFin.write(SERVO_MIN_POSITION + FIN_FORWARD_ANGLE);
-    rightFin.write(SERVO_MAX_POSITION - FIN_TURN_ANGLE);
+    //Serial.println("turn fins right");
+    leftFin.write(SERVO_MIN_POSITION + FIN_FORWARD_ANGLE-200);
+    rightFin.write(SERVO_MAX_POSITION - FIN_TURN_ANGLE-100);
   } else { // Straight
-    leftFin.write(SERVO_MIN_POSITION + FIN_FORWARD_ANGLE);
-    rightFin.write(SERVO_MAX_POSITION - FIN_FORWARD_ANGLE);
+    //Serial.println("turn fins straight");
+    leftFin.write(SERVO_MIN_POSITION + FIN_FORWARD_ANGLE-200);
+    rightFin.write(SERVO_MAX_POSITION - FIN_FORWARD_ANGLE-100);
   }
   // Set valve states
   if(TURN_VALVES && ang>=TURNING_ANGLE) { // Left
+    //Serial.println("turn VALVE left");
     digitalWrite(VALVE1M, LOW);
     analogWrite(VALVE1E, 0);
     digitalWrite(VALVE2, HIGH);
   } else if(TURN_VALVES && ang<=-TURNING_ANGLE) { // Right
+    //Serial.println("turn VALVE right");
     digitalWrite(VALVE1M, HIGH);
     analogWrite(VALVE1E, 255);
     digitalWrite(VALVE2, LOW);
   } else { // Straight
-    digitalWrite(VALVE1M, HIGH);
-    analogWrite(VALVE1E, 255);
+    //Serial.println("turn VALVE straight");
+    digitalWrite(VALVE1M, HIGH);    analogWrite(VALVE1E, 255);
     digitalWrite(VALVE2, HIGH);
   }
 }
